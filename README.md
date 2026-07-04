@@ -8,11 +8,7 @@
 
 ---
 
-**Building from Armenia 🇦🇲**
-
-### A game played in the real world.
-
-Tourisk is a different kind of game.
+Tourisk turns the real world into something worth exploring again.
 
 Not one that helps people escape reality.
 
@@ -22,17 +18,21 @@ We believe curiosity is one of the strongest human emotions.
 
 When people become curious, they walk farther, explore deeper, notice more, and create stories worth remembering.
 
-We're building Tourisk to bring that feeling back.
+We're building Tourisk to make everyday life feel worth exploring again.
 ---
 
 ### Our Principles
 
-- Curiosity over addiction.
-- Reputation can't be bought.
-- The real world is the map.
-- Every step should matter.
-- Every discovery should feel earned.
+• Curiosity over addiction.
+• Reputation can't be bought.
+• The real world is the map.
+• Wonder is earned.
+• Every step should matter.
 
 ---
 
-Building from Armenia 🇦🇲
+See you somewhere in the real world.
+
+— Artur
+
+**Building from Armenia 🇦🇲**
