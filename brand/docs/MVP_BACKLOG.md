@@ -1,27 +1,70 @@
-☐ Карта отображается
+# TOURISK MVP BACKLOG
 
-☐ Геолокация
+Version 1.0
 
-☐ Кнопка Check-in
+---
 
-☐ Fog of War
+# Current Goal
 
-☐ Плавное открытие территории
+Create a polished Yerevan MVP.
 
-☐ Анимация открытия
+Everything below exists only to achieve this goal.
 
-☐ XP начисляется
+---
 
-☐ Уровень игрока
+# Phase 1 — Foundation
 
-☐ Профиль
+- [x] GitHub Repository
+- [x] README
+- [x] Tourisk Book
+- [x] Principles
+- [x] Architecture
+- [x] Roadmap
+- [x] Visual Guide
+- [x] Game Loop
+- [x] MVP Flow
 
-☐ Паспорт
+---
 
-☐ Прогресс города
+# Phase 2 — Existing Prototype
 
-☐ Достижения
+Already working:
 
-☐ Firebase
+- [x] Google Map
+- [x] User Location
+- [x] Check-in
+- [x] Duplicate XP Protection
+- [x] Firebase Profile
+- [x] Green Territory Cells
+- [x] Basic Territory Logic
 
-☐ Полировка
+---
+
+# Phase 3 — Current Development
+
+- [ ] Beautiful Fog of War
+- [ ] Smooth Territory Merge
+- [ ] City Progress
+- [ ] Better Profile
+- [ ] Achievements
+- [ ] Level System
+- [ ] Rewards
+
+---
+
+# Phase 4 — Polish
+
+- [ ] Animations
+- [ ] Performance
+- [ ] UI Polish
+- [ ] Bug Fixes
+
+---
+
+# MVP Complete
+
+The MVP is complete when a new player can install Tourisk,
+walk through Yerevan,
+open new territory,
+earn progress,
+and want to continue exploring tomorrow.
