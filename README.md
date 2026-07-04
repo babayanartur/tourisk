@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="brand/hero/hero-v1.png" alt="Tourisk Hero" width="900"/>
+</p>
+
 # TOURISK
 
 > **The world was never boring.**
