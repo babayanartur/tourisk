@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
     left: -40,
     width: width + 80,
     height: 220,
-    opacity: 0.45,
+    opacity: 0.18,
   },
 
   bottomFog: {
@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
     left: -40,
     width: width + 80,
     height: 230,
-    opacity: 0.42,
+    opacity: 0.18,
     transform: [{ rotate: "180deg" }],
   },
 
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     left: -120,
     width: 260,
     height: height - 160,
-    opacity: 0.38,
+    opacity: 0.18,
     transform: [{ rotate: "90deg" }],
   },
 
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     right: -120,
     width: 260,
     height: height - 160,
-    opacity: 0.38,
+    opacity: 0.18,
     transform: [{ rotate: "-90deg" }],
   },
 });

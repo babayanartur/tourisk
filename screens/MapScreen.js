@@ -6,13 +6,12 @@ import {
   TouchableOpacity,
   Alert,
   Animated,
-  Image,
 } from "react-native";
 
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { yerevanBoundary } from "../src/maps/data/cities/yerevanBoundary";
-import MapView, { Marker, Circle, Callout, Polygon, Polyline } from "react-native-maps";
+import MapView, { Marker, Circle, Polygon } from "react-native-maps";
 import { yerevanDistricts } from "../src/maps/data/districts/yerevanDistricts";
 import { MapProgress } from "../src/maps/services/MapProgress";
 import { RouteTracker } from "../src/maps/services/RouteTracker";
@@ -29,11 +28,13 @@ import CloudLayer from "../components/CloudLayer";
 import DebugPanel from "../components/DebugPanel";
 import ExplorerHUD from "../components/ExplorerHUD";
 import FogOverlay from "../components/FogOverlay";
+import DiscoveryNotification from "../components/DiscoveryNotification";
+import { legendaryPlaces } from "../data/legendaryPlaces";
+import { DiscoveryEngine } from "../src/maps/services/DiscoveryEngine";
 import {
   saveDemoUserProfile,
   saveDemoCheckin,
 } from "../services/firebaseUserService";
-import { styles as mapStyles } from "./MapScreen.styles";
 const getCityImage = (city) => {
   switch (city) {
     case "Yerevan":
@@ -48,6 +49,8 @@ const getCityImage = (city) => {
 export default function MapScreen() {
   const [location, setLocation] = useState(null);
   const [checkins, setCheckins] = useState([]);
+  const [discoveredPlace, setDiscoveredPlace] = useState(null);
+  const [openedLegendaryPlaces, setOpenedLegendaryPlaces] = useState([]);
   const [visitedCells, setVisitedCells] = useState([]);
   const [currentCellId, setCurrentCellId] = useState(null);
   const [worldNow, setWorldNow] = useState(new Date());
@@ -64,16 +67,9 @@ const districtsWithProgress = yerevanDistricts.map((district) => ({
     district
   ),
 }));
-const territoryPolygons = useMemo(() => {
-  return TerritoryEngine.getMergedTerritoryPolygons(visitedCells);
-}, [visitedCells]);
 
-console.log(
-  "Territories:",
-  territoryPolygons.length,
-  "Visited:",
-  visitedCells.length
-);
+const territoryPolygons = [];
+
 useEffect(() => {
   let locationSubscription;
 
@@ -151,8 +147,6 @@ setVisitedCells((prevCells) => {
     JSON.stringify(updatedCells)
   );
 
-  console.log("✅ Auto explored cell:", cellId);
-
   return updatedCells;
 });
 };
@@ -161,6 +155,11 @@ setVisitedCells((prevCells) => {
     try {
       const saved = await AsyncStorage.getItem("checkins");
 const savedCells = await AsyncStorage.getItem("visitedCells");
+const savedLegendary = await AsyncStorage.getItem("openedLegendaryPlaces");
+
+if (savedLegendary) {
+  setOpenedLegendaryPlaces(JSON.parse(savedLegendary));
+}
 
 if (savedCells) {
   setVisitedCells(JSON.parse(savedCells));
@@ -316,6 +315,24 @@ cities: getUniqueCitiesCount(updatedCheckins),
   setIsCheckingIn(false);
 }
 };
+const handleDiscoverLegendaryPlace = async (place) => {
+  if (openedLegendaryPlaces.includes(place.id)) return;
+
+  const updatedOpenedPlaces = [...openedLegendaryPlaces, place.id];
+
+  setOpenedLegendaryPlaces(updatedOpenedPlaces);
+
+  await AsyncStorage.setItem(
+    "openedLegendaryPlaces",
+    JSON.stringify(updatedOpenedPlaces)
+  );
+
+setDiscoveredPlace(place);
+
+setTimeout(() => {
+  setDiscoveredPlace(null);
+}, 3000);
+};
   if (!location) {
     return (
       <View style={styles.loading}>
@@ -324,7 +341,14 @@ cities: getUniqueCitiesCount(updatedCheckins),
     );
   }
 const playerXp = LevelEngine.getXpFromTerritories(visitedCells.length);
+const exploredKm2 = (visitedCells.length * 0.01).toFixed(2);
 const playerLevel = LevelEngine.getLevel(playerXp);
+const nearbyLegendaryPlaces = DiscoveryEngine.getNearbyLegendaryPlaces(
+  location,
+  legendaryPlaces,
+  10000
+).slice(0, 2);
+console.log("Nearby legendary places:", nearbyLegendaryPlaces.length);
 const remainingXp = LevelEngine.getRemainingXp(playerXp);
 const explorerTitle = LevelEngine.getTitle(playerLevel);
 const levelProgress = LevelEngine.getProgressPercent(playerXp);
@@ -332,7 +356,12 @@ const nearbyFogCells = FogEngine.getFogCellsAroundLocation(currentCellId, 3);
 const hiddenFogCells = FogEngine.getHiddenCells(nearbyFogCells, visitedCells);
 const worldTheme = WorldTheme.getTheme(worldNow);
 const fogPolygons = FogEngine.buildFogPolygons(hiddenFogCells);
-console.log("Fog hidden:", hiddenFogCells.length);
+const hiddenLegendaryPlaces = nearbyLegendaryPlaces.filter(
+  (place) => !openedLegendaryPlaces.includes(place.id)
+);
+const openedLegendaryPlacesObjects = nearbyLegendaryPlaces.filter((place) =>
+  openedLegendaryPlaces.includes(place.id)
+);
   return (
     <View style={styles.container}>
       <MapView
@@ -395,7 +424,67 @@ strokeColor="transparent"
             description={"🌍 " + item.country + " • ✅ Посещено • ⭐ +10 XP"}
             onPress={() => setSelectedCity(item)}
           />
+          
         ))}
+        {hiddenLegendaryPlaces.map((place) => (
+          
+<Marker
+    key={place.id}
+    coordinate={{
+        latitude: place.latitude,
+        longitude: place.longitude,
+        
+    }}
+      onPress={() => handleDiscoverLegendaryPlace(place)}
+
+>
+    <View
+      style={{
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: "rgba(255,215,0,0.92)",
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 2,
+        borderColor: "#fff",
+      }}
+    >
+      <Text
+        style={{
+          fontWeight: "900",
+          color: "#111",
+        }}
+      >
+        ?
+      </Text>
+    </View>
+  </Marker>
+))}
+{openedLegendaryPlacesObjects.map((place) => (
+  <Marker
+    key={"opened-" + place.id}
+    coordinate={{
+      latitude: place.latitude,
+      longitude: place.longitude,
+    }}
+  >
+    <View
+      style={{
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: "rgba(255,255,255,0.95)",
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 2,
+        borderColor: "#34d399",
+      }}
+    >
+      <Text style={{ fontSize: 17 }}>🏛</Text>
+    </View>
+  </Marker>
+))}
 {territoryPolygons.map((territory) => (
   <Polygon
 key={`${territory.id}-${visitedCells.length}`}
@@ -409,9 +498,9 @@ strokeColor="rgba(34,197,94,0.45)"
 ))}
     <FogOverlay fogPolygons={fogPolygons} />  
       </MapView>
-      <CloudLayer theme={worldTheme} />
-      <WorldRenderer theme={worldTheme} />
-<CloudLayer theme={worldTheme} />
+{/* <CloudLayer theme={worldTheme} /> */}
+{/* <WorldRenderer theme={worldTheme} /> */}
+{/* <CloudLayer theme={worldTheme} /> */}
 <ExplorerHUD
   xp={playerXp}
   territories={visitedCells.length}
@@ -420,6 +509,8 @@ strokeColor="rgba(34,197,94,0.45)"
   title={explorerTitle}
     progress={levelProgress}
 />
+<DiscoveryNotification place={discoveredPlace} />
+
 <CityCard
   selectedCity={selectedCity}
   onClose={() => setSelectedCity(null)}
@@ -446,11 +537,13 @@ strokeColor="rgba(34,197,94,0.45)"
           <Text style={styles.xpPopupText}>⭐ +10 XP</Text>
         </Animated.View>
       )}
+{/* 
 <DebugPanel
-   visitedCells={visitedCells}
+  visitedCells={visitedCells}
   territoryPolygons={territoryPolygons}
   hiddenFogCells={hiddenFogCells}
 />
+*/}
       <TouchableOpacity style={styles.button} onPress={handleCheckIn}>
 <Text style={styles.buttonText}>
   🧭 Исследовать
