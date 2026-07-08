@@ -14,8 +14,37 @@ const Stack = createNativeStackNavigator();
 
 function MainTabs() {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
-      <Tab.Screen name="Главная" component={HomeScreen} />
+<Tab.Navigator
+  screenOptions={{
+    headerShown: false,
+
+    tabBarStyle: {
+      position: "absolute",
+      left: 16,
+      right: 16,
+     bottom: 4,
+    height: 58,
+
+      backgroundColor: "#0d1b16",
+      borderTopWidth: 0,
+
+      borderRadius: 24,
+
+      elevation: 0,
+      shadowOpacity: 0,
+    },
+
+    tabBarActiveTintColor: "#a8d85a",
+    tabBarInactiveTintColor: "#7b7f7b",
+
+    tabBarLabelStyle: {
+      fontSize: 12,
+      fontWeight: "700",
+      marginBottom: 3,
+    },
+  }}
+>
+    <Tab.Screen name="Главная" component={HomeScreen} />
       <Tab.Screen name="Карта" component={MapScreen} />
       <Tab.Screen name="Профиль" component={ProfileScreen} />
       <Tab.Screen name="Лидеры" component={LeaderboardScreen} />

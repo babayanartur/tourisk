@@ -6,18 +6,20 @@ import {
   TouchableOpacity,
   Alert,
   Animated,
+    Image,
 } from "react-native";
 
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { yerevanBoundary } from "../src/maps/data/cities/yerevanBoundary";
-import MapView, { Marker, Circle, Polygon } from "react-native-maps";
+import MapView, { Marker, Circle, Polygon, Polyline } from "react-native-maps";
 import { yerevanDistricts } from "../src/maps/data/districts/yerevanDistricts";
 import { MapProgress } from "../src/maps/services/MapProgress";
 import { RouteTracker } from "../src/maps/services/RouteTracker";
 import { ProgressEngine } from "../src/maps/services/ProgressEngine";
 import { GeoUtils } from "../src/maps/utils/GeoUtils";
 import { GridEngine } from "../src/maps/services/GridEngine";
+import { DiscoveryEngine } from "../src/maps/services/DiscoveryEngine";
 import { TerritoryEngine } from "../src/maps/services/TerritoryEngine";
 import { LevelEngine } from "../src/maps/services/LevelEngine";
 import { FogEngine } from "../src/maps/services/FogEngine";
@@ -27,10 +29,10 @@ import WorldRenderer from "../components/WorldRenderer";
 import CloudLayer from "../components/CloudLayer";
 import DebugPanel from "../components/DebugPanel";
 import ExplorerHUD from "../components/ExplorerHUD";
+import { TouriskMapStyle } from "../src/maps/styles/TouriskMapStyle";
 import FogOverlay from "../components/FogOverlay";
 import DiscoveryNotification from "../components/DiscoveryNotification";
 import { legendaryPlaces } from "../data/legendaryPlaces";
-import { DiscoveryEngine } from "../src/maps/services/DiscoveryEngine";
 import {
   saveDemoUserProfile,
   saveDemoCheckin,
@@ -45,6 +47,7 @@ const getCityImage = (city) => {
       return "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=1200";
   }
   };
+  const playerPawn = require("../assets/player/pawn_green.png");
 
 export default function MapScreen() {
   const [location, setLocation] = useState(null);
@@ -56,6 +59,7 @@ export default function MapScreen() {
   const [worldNow, setWorldNow] = useState(new Date());
   const [selectedCity, setSelectedCity] = useState(null);
   const [showXp, setShowXp] = useState(false);
+  const [liveTrail, setLiveTrail] = useState([]);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const xpAnim = useState(new Animated.Value(0))[0];
   const yerevanProgress = ProgressEngine.calculateCityProgress(yerevanDistricts);
@@ -77,16 +81,16 @@ useEffect(() => {
     await loadCheckins();
     await getLocation();
 
-    locationSubscription = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.High,
-        distanceInterval: 20,
-        timeInterval: 5000,
-      },
-      async () => {
-        await getLocation();
-      }
-    );
+ locationSubscription = await Location.watchPositionAsync(
+  {
+    accuracy: Location.Accuracy.High,
+    distanceInterval: 3,
+    timeInterval: 1000,
+  },
+  (position) => {
+    updatePlayerLocation(position.coords);
+  }
+);
   };
 
   startLocationWatcher();
@@ -105,7 +109,40 @@ useEffect(() => {
 
   return () => clearInterval(timer);
 }, []);
+const updatePlayerLocation = (coords) => {
+  setLocation(coords);
 
+  setLiveTrail((prevTrail) => {
+    const nextPoint = {
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+        timestamp: Date.now(),
+    };
+
+    if (prevTrail.length > 0) {
+      const lastPoint = prevTrail[prevTrail.length - 1];
+
+      const distance = DiscoveryEngine.distanceMeters(
+        lastPoint.latitude,
+        lastPoint.longitude,
+        nextPoint.latitude,
+        nextPoint.longitude
+      );
+
+      if (distance < 3) {
+        return prevTrail;
+      }
+    }
+
+    const updatedTrail = [...prevTrail, nextPoint];
+
+const now = Date.now();
+
+return updatedTrail
+  .filter((point) => now - point.timestamp < 10000)
+  .slice(-12);
+  });
+};
   const getLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
 
@@ -115,7 +152,9 @@ useEffect(() => {
     }
 
     const currentLocation = await Location.getCurrentPositionAsync({});
-    setLocation(currentLocation.coords);
+
+  updatePlayerLocation(currentLocation.coords);
+  
     const district = yerevanDistricts.find((d) =>
   MapProgress.isPointInsideDistrict(
     currentLocation.coords.latitude,
@@ -351,11 +390,14 @@ const nearbyLegendaryPlaces = DiscoveryEngine.getNearbyLegendaryPlaces(
 console.log("Nearby legendary places:", nearbyLegendaryPlaces.length);
 const remainingXp = LevelEngine.getRemainingXp(playerXp);
 const explorerTitle = LevelEngine.getTitle(playerLevel);
+
 const levelProgress = LevelEngine.getProgressPercent(playerXp);
-const nearbyFogCells = FogEngine.getFogCellsAroundLocation(currentCellId, 3);
+const nearbyFogCells = FogEngine.getFogCellsAroundLocation(currentCellId, 5);
 const hiddenFogCells = FogEngine.getHiddenCells(nearbyFogCells, visitedCells);
 const worldTheme = WorldTheme.getTheme(worldNow);
 const fogPolygons = FogEngine.buildFogPolygons(hiddenFogCells);
+console.log("Fog cells:", hiddenFogCells.length);
+console.log("Fog polygons:", fogPolygons.length);
 const hiddenLegendaryPlaces = nearbyLegendaryPlaces.filter(
   (place) => !openedLegendaryPlaces.includes(place.id)
 );
@@ -365,8 +407,10 @@ const openedLegendaryPlacesObjects = nearbyLegendaryPlaces.filter((place) =>
   return (
     <View style={styles.container}>
       <MapView
+      
         style={styles.map}
-        showsUserLocation={true}
+        customMapStyle={TouriskMapStyle}
+      showsUserLocation={false}
         initialRegion={{
           latitude: location.latitude,
           longitude: location.longitude,
@@ -374,6 +418,49 @@ const openedLegendaryPlacesObjects = nearbyLegendaryPlaces.filter((place) =>
           longitudeDelta: 0.04,
         }}
       >
+ {liveTrail.slice(1).map((point, index) => {
+  const prevPoint = liveTrail[index];
+  const age = Date.now() - point.timestamp;
+  const opacity = Math.max(0.15, 1 - age / 10000);
+
+  return (
+    <Polyline
+      key={"trail-" + index}
+      coordinates={[
+        {
+          latitude: prevPoint.latitude,
+          longitude: prevPoint.longitude,
+        },
+        {
+          latitude: point.latitude,
+          longitude: point.longitude,
+        },
+      ]}
+      strokeColor={`rgba(255, 211, 106, ${opacity})`}
+      strokeWidth={7}
+      lineCap="round"
+      lineJoin="round"
+      zIndex={9000}
+    />
+  );
+})}
+<Marker
+  coordinate={{
+    latitude: location.latitude,
+    longitude: location.longitude,
+  }}
+  anchor={{ x: 0.5, y: 0.75 }}
+  zIndex={9999}
+>
+  <Image
+    source={playerPawn}
+    style={{
+      width: 64,
+      height: 64,
+      resizeMode: "contain",
+    }}
+  />
+</Marker>
         {checkins.some((item) => item.title === "Yerevan" || item.title === "Ереван") && (
   <>
 
@@ -398,34 +485,9 @@ onPress={() => {
     ))}
   </>
 )}
- 
-        {checkins.map((item) => (
-          <Circle
-            key={"circle-" + item.id}
-            center={{
-              latitude: item.latitude,
-              longitude: item.longitude,
-            }}
-       radius={0}
-fillColor="transparent"
-strokeColor="transparent"
-          />
-        ))}
+{/* Check-in circles hidden for clean MVP map */}
 
-        {checkins.map((item) => (
-          <Marker
-            key={item.id}
-            coordinate={{
-              latitude: item.latitude,
-              longitude: item.longitude,
-            }}
-            pinColor="green"
-            title={"📍 " + item.title}
-            description={"🌍 " + item.country + " • ✅ Посещено • ⭐ +10 XP"}
-            onPress={() => setSelectedCity(item)}
-          />
-          
-        ))}
+{/* Check-in markers hidden for clean MVP map */}
         {hiddenLegendaryPlaces.map((place) => (
           
 <Marker
@@ -573,7 +635,7 @@ const styles = StyleSheet.create({
   },
   button: {
     position: "absolute",
-    bottom: 30,
+    bottom: 95,
     left: 24,
     right: 24,
     backgroundColor: "#2196f3",

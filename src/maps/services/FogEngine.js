@@ -1,5 +1,7 @@
+import { GridEngine } from "./GridEngine";
 export class FogEngine {
-  static getFogCellsAroundLocation(currentCellId, radius = 3) {
+static getFogCellsAroundLocation(currentCellId, radius = 5)
+   {
     if (!currentCellId) return [];
 
     const parts = currentCellId.split(":");
@@ -24,7 +26,19 @@ export class FogEngine {
   static getHiddenCells(nearbyCells, visitedCells) {
     return nearbyCells.filter((cellId) => !visitedCells.includes(cellId));
   }
-  static buildFogPolygons(hiddenCells) {
-  return [];
+static buildFogPolygons(hiddenCells) {
+  return hiddenCells.map((cellId) => {
+    const raw = cellId.split(":")[1] || cellId;
+    const [row, col] = raw.split("_").map(Number);
+
+const size = GridEngine.CELL_SIZE;
+
+    return [
+      { latitude: row * size, longitude: col * size },
+      { latitude: row * size, longitude: col * size + size },
+      { latitude: row * size + size, longitude: col * size + size },
+      { latitude: row * size + size, longitude: col * size },
+    ];
+  });
 }
 }
