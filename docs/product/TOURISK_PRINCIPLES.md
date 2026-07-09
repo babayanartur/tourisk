@@ -15,7 +15,7 @@ it doesn't belong in Tourisk.
 
 ---
 
-## Product First
+## t First
 
 We don't build features.
 
