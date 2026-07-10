@@ -1,29 +1,46 @@
 {
   "expo": {
-    "name": "tourisk-next",
+    "name": "Tourisk",
     "slug": "tourisk-next",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#04120d"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "app.tourisk.mvp",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Tourisk использует геолокацию, чтобы открывать карту вокруг вас.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Tourisk может обновлять ваш путь в фоне, чтобы сохранять исследованные места.",
+        "NSLocationAlwaysUsageDescription": "Tourisk может обновлять ваш путь в фоне, чтобы сохранять исследованные места.",
+        "UIBackgroundModes": [
+          "location"
+        ]
+      }
     },
     "android": {
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#04120d"
       },
       "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "apiUrl": "http://localhost:8000"
     }
   }
 }

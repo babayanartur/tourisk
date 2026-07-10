@@ -1,6 +1,6 @@
 1. Mission
 2. Vision
-3. t Philosophy
+3. Product Philosophy
 
 
 
@@ -60,7 +60,7 @@ Founder
 
 Артур
 
-t Owner
+Product Owner
 
 Vision
 
@@ -79,23 +79,3 @@ Architecture
 Firebase
 
 Maps
-
-
-
-
-✅ Instagram @touriskapp создан.
-Статус: DONE.
-Дата: 08.07.2026.
-
-
-
-08.07.2026
-
-BLOCK 5.3
-
-Official Email
-
-touriskapp@gmail.com
-
-Status:
-DONE

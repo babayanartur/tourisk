@@ -6,13 +6,13 @@ export default function FogOverlay({ fogPolygons = [] }) {
     <>
       {fogPolygons.map((polygon, index) => (
         <Polygon
-          key={"fog-" + index}
+          key={`fog-${index}`}
           coordinates={polygon}
-fillColor="rgba(18, 28, 36, 0.28)"
-strokeColor="rgba(18, 28, 36, 0)"
+          fillColor="rgba(9, 15, 22, 0.50)"
+          strokeColor="rgba(9, 15, 22, 0)"
           strokeWidth={0}
           tappable={false}
-          zIndex={9999}
+          zIndex={7300}
         />
       ))}
     </>

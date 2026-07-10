@@ -1,42 +1,58 @@
-<p align="center">
-  <img src="brand/hero/hero-v1.png" alt="Tourisk Hero" width="900"/>
-</p>
+# Tourisk MVP Stage 2
 
-# TOURISK
+Expo + Node/Express/Mongo/Socket.IO MVP.
 
-> **The world was never boring.**
->
-> **We just stopped looking.**
+## Что входит
 
-*A game played in the real world.*
+- Expo iOS приложение.
+- Вход по email OTP, тестовый код: `1111`.
+- Кнопки Apple / Google для MVP-логина.
+- Главный экран в fantasy стиле.
+- Карта с GPS, пешкой игрока, туманом, раскрытием клеток и исчезающим шлейфом.
+- Профиль с никнеймом, статистикой, открытиями, ачивками и коллекцией фигурок.
+- Лидеры с подиумом и рейтингом.
+- Backend Node.js + Express + MongoDB + Socket.IO.
+- Админка с логином/паролем, статистикой, CRUD ачивок/пешек/мест/пользователей.
+- Загрузка изображений фигурок и бейджей через админку, не ссылкой.
 
----
+## Запуск backend
 
-Tourisk turns the real world into something worth exploring again.
+```bash
+cd backend
+cp .env.example .env
+npm install
+npm run seed
+npm run dev
+```
 
-Not one that helps people escape reality.
+Админка:
 
-One that helps them rediscover it.
+```text
+http://localhost:8000/admin
+```
 
-We believe curiosity is one of the strongest human emotions.
+Логин/пароль по умолчанию:
 
-When people become curious, they walk farther, explore deeper, notice more, and create stories worth remembering.
+```text
+admin
+tourisk1111
+```
 
-We're building Tourisk to make everyday life feel worth exploring again.
----
+## Запуск iOS Simulator
 
-### Our Principles
+```bash
+npm install
+npm run ios
+```
 
-• Curiosity over addiction.
-• Reputation can't be bought.
-• The real world is the map.
-• Wonder is earned.
-• Every step should matter.
+## Запуск на iPhone через Expo Go
 
----
+```bash
+EXPO_PUBLIC_API_URL=http://$(ipconfig getifaddr en0):8000 npx expo start
+```
 
-See you somewhere in the real world.
+Потом сканируй QR через Expo Go.
 
-— Artur
+## Важное по фоновой геолокации
 
-**Building from Armenia 🇦🇲**
+В код добавлена базовая поддержка background location через `expo-task-manager` и `expo-location`. На iOS фоновые обновления зависят от разрешений и политики системы. Если пользователь полностью убил приложение из switcher, iOS может ограничить обновления. Спасибо Apple за очередную маленькую бюрократическую скульптуру.
