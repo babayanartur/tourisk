@@ -15,7 +15,8 @@ export class DiscoveryEngine {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
-  static getNearbyLegendaryPlaces(location, places, radius = 300) {
+
+static getNearbyPlaces(location, places, radius = 300) {
     if (!location) return [];
 
     return places.filter((place) => {

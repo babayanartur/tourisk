@@ -14,7 +14,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import MapView, { Circle, Marker, Polygon, Polyline } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-
+import TouriskDiscoveryCard from "../components/discovery/TouriskDiscoveryCard";
+import { getAnyDiscoveryById } from "../data/discoveryService";
 import DiscoveryNotification from "../components/DiscoveryNotification";
 import ExplorerHUD from "../components/ExplorerHUD";
 import FogOverlay from "../components/FogOverlay";
@@ -63,12 +64,15 @@ export default function MapScreen() {
   const xpAnim = useRef(new Animated.Value(0)).current;
   const pawnPulse = useRef(new Animated.Value(0)).current;
   const [location, setLocation] = useState(null);
+  
   const [region, setRegion] = useState(DEFAULT_REGION);
   const [visitedCells, setVisitedCells] = useState([]);
   const [currentCellId, setCurrentCellId] = useState(null);
   const [liveTrail, setLiveTrail] = useState([]);
   const [stats, setStats] = useState({ xp: 0, territories: 0, level: 1, selectedPawn: "pawn_green" });
   const [showXp, setShowXp] = useState(false);
+const [showDiscoveryCard, setShowDiscoveryCard] = useState(false);
+const [currentDiscovery, setCurrentDiscovery] = useState(null);
   const [discoveredPlace, setDiscoveredPlace] = useState(null);
   const [openedPlaces, setOpenedPlaces] = useState([]);
   const [places, setPlaces] = useState([]);
@@ -236,7 +240,17 @@ export default function MapScreen() {
     setOpenedPlaces(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.openedLegendaryPlaces, JSON.stringify(updated));
     setDiscoveredPlace(hidden);
-    pulseXp();
+
+
+    const discovery = getAnyDiscoveryById(hidden.id);
+    
+if (discovery) {
+  setCurrentDiscovery(discovery);
+  setShowDiscoveryCard(true);
+}
+
+pulseXp();
+
     setTimeout(() => setDiscoveredPlace(null), 3200);
   };
 
@@ -388,7 +402,14 @@ export default function MapScreen() {
           </Animated.View>
         </Marker>
       </MapView>
-
+<TouriskDiscoveryCard
+  visible={showDiscoveryCard}
+  discovery={currentDiscovery}
+  onHide={() => {
+    setShowDiscoveryCard(false);
+    setCurrentDiscovery(null);
+  }}
+/>
       <View pointerEvents="none" style={styles.fantasyTint} />
       <Animated.Image source={fogDay} pointerEvents="none" style={[styles.topCloud, { transform: [{ translateX: cloudShift }] }]} />
       <Animated.Image source={fogNight} pointerEvents="none" style={[styles.bottomCloud, { transform: [{ translateX: Animated.multiply(cloudShift, -1) }, { rotate: "180deg" }] }]} />

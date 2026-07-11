@@ -67,6 +67,16 @@ export const DEFAULT_PAWNS = [
     unlockValue: 5,
     image: "local:pawn_green",
   },
+  {
+  id: "levon-cave",
+  name: "Пещера Левона",
+  city: "Ариндж",
+  country: "Армения",
+  latitude: 40.2594,
+  longitude: 44.6337,
+  rarity: "hidden",
+  xp: 120,
+},
 ];
 
 export const DEFAULT_PLACES = [
