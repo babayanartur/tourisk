@@ -1,103 +1,148 @@
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  View,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import TouriskTabBar from "./components/TouriskTabBar";
 import AuthScreen from "./screens/AuthScreen";
-import CityRewardScreen from "./screens/CityRewardScreen";
 import HomeScreen from "./screens/HomeScreen";
 import IntroScreen from "./screens/IntroScreen";
 import LeaderboardScreen from "./screens/LeaderboardScreen";
 import MapScreen from "./screens/MapScreen";
 import ProfileScreen from "./screens/ProfileScreen";
-import TouriskTabBar from "./components/TouriskTabBar";
-import { getStoredUser } from "./services/authService";
+import { getStoredUser, logout } from "./services/authService";
 import { STORAGE_KEYS } from "./services/storageKeys";
 
-const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
+const ROUTES = [
+  { key: "home", name: "Главная" },
+  { key: "map", name: "Карта" },
+  { key: "profile", name: "Профиль" },
+  { key: "leaders", name: "Лидеры" },
+];
 
-function MainTabs({ onLogout }) {
+const SCREEN_BY_ROUTE = {
+  Главная: HomeScreen,
+  Карта: MapScreen,
+  Профиль: ProfileScreen,
+  Лидеры: LeaderboardScreen,
+};
+
+function AppTabs({ onLogout }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeRoute = ROUTES[activeIndex];
+  const ActiveScreen = SCREEN_BY_ROUTE[activeRoute.name];
+
+  const navigate = useCallback((routeName) => {
+    const nextIndex = ROUTES.findIndex((route) => route.name === routeName);
+    if (nextIndex >= 0) setActiveIndex(nextIndex);
+  }, []);
+
+  const navigation = useMemo(
+    () => ({
+      navigate,
+      emit: () => ({ defaultPrevented: false }),
+      addListener: () => () => {},
+      isFocused: () => true,
+    }),
+    [navigate]
+  );
+
+  const state = useMemo(
+    () => ({ index: activeIndex, routes: ROUTES }),
+    [activeIndex]
+  );
+
+  const descriptors = useMemo(
+    () => Object.fromEntries(ROUTES.map((route) => [route.key, { options: {} }])),
+    []
+  );
+
   return (
-    <Tab.Navigator
-      tabBar={(props) => <TouriskTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
-    >
-      <Tab.Screen name="Главная" component={HomeScreen} />
-      <Tab.Screen name="Карта" component={MapScreen} />
-      <Tab.Screen name="Профиль">
-        {(props) => <ProfileScreen {...props} onLogout={onLogout} />}
-      </Tab.Screen>
-      <Tab.Screen name="Лидеры" component={LeaderboardScreen} />
-    </Tab.Navigator>
+    <View style={styles.appRoot}>
+      <View key={activeRoute.key} style={styles.screen}>
+        <ActiveScreen navigation={navigation} onLogout={onLogout} />
+      </View>
+      <TouriskTabBar state={state} descriptors={descriptors} navigation={navigation} />
+    </View>
   );
 }
 
-export default function App() {
-  const [booting, setBooting] = useState(true);
+function TouriskApp() {
+  const [loading, setLoading] = useState(true);
+  const [hasSeenIntro, setHasSeenIntro] = useState(false);
   const [user, setUser] = useState(null);
-  const [introDone, setIntroDone] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
-    const boot = async () => {
-      const [storedUser, hasSeenIntro] = await Promise.all([
-        getStoredUser(),
-        AsyncStorage.getItem(STORAGE_KEYS.hasSeenIntro),
-      ]);
-
-      if (!mounted) return;
-      setUser(storedUser);
-      setIntroDone(Boolean(hasSeenIntro));
-      setBooting(false);
-    };
-
-    boot();
+    Promise.all([
+      AsyncStorage.getItem(STORAGE_KEYS.hasSeenIntro),
+      getStoredUser(),
+    ])
+      .then(([introFlag, storedUser]) => {
+        if (!mounted) return;
+        setHasSeenIntro(introFlag === "1");
+        setUser(storedUser);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
 
     return () => {
       mounted = false;
     };
   }, []);
 
-  if (booting) {
+  const handleLogout = useCallback(async () => {
+    await logout();
+    setUser(null);
+  }, []);
+
+  if (loading) {
     return (
-      <View style={styles.loader}>
-        <ActivityIndicator color="#a8d85a" size="large" />
-        <StatusBar style="light" />
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator size="large" color="#a9ec56" />
       </View>
     );
   }
 
-  if (!introDone) {
-    return <IntroScreen onDone={() => setIntroDone(true)} />;
+  if (!hasSeenIntro) {
+    return <IntroScreen onDone={() => setHasSeenIntro(true)} />;
   }
 
   if (!user) {
     return <AuthScreen onAuth={setUser} />;
   }
 
+  return <AppTabs onLogout={handleLogout} />;
+}
+
+export default function App() {
   return (
-    <NavigationContainer>
-      <StatusBar style="light" />
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="MainTabs">
-          {(props) => <MainTabs {...props} onLogout={() => setUser(null)} />}
-        </Stack.Screen>
-        <Stack.Screen name="CityReward" component={CityRewardScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <TouriskApp />
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  loader: {
+  appRoot: {
     flex: 1,
-    backgroundColor: "#04120d",
+    backgroundColor: "#020b0c",
+  },
+  screen: {
+    flex: 1,
+  },
+  loadingScreen: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#020b0c",
   },
 });

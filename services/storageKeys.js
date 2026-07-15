@@ -5,5 +5,12 @@ export const STORAGE_KEYS = {
   visitedCells: "tourisk:visitedCells",
   openedLegendaryPlaces: "tourisk:openedLegendaryPlaces",
   locationTrail: "tourisk:locationTrail",
+  totalDistanceMeters: "tourisk:totalDistanceMeters",
+  lastDistancePoint: "tourisk:lastDistancePoint",
+  streakDays: "tourisk:streakDays",
+  lastActiveDate: "tourisk:lastActiveDate",
   hasSeenIntro: "tourisk:hasSeenIntro",
+  gameContent: "tourisk:gameContent",
+  dailyJourneys: "tourisk:dailyJourneys",
+  dailyJourneyLastShown: "tourisk:dailyJourneyLastShown",
 };

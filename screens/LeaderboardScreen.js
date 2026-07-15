@@ -1,134 +1,372 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import LivingWorld from "../components/LivingWorld";
+import RarityAvatar from "../components/RarityAvatar";
+import { rarityColor } from "../components/AnimatedPawn";
 import { DEFAULT_PAWNS, getGameContent, getLeaderboard } from "../services/gameService";
 import { getPlayerStats } from "../services/playerStats";
-import { getSelectedPawnSource } from "../services/assetResolver";
+import { getStoredUser } from "../services/authService";
+import { getLocalPawnFallback, getPawnSource, getSelectedPawn } from "../services/assetResolver";
 
-const leaderboardBg = require("../docs/mvp-yerevan/Leaderboard_v1.0.png");
+const leaderboardBg = require("../assets/backgrounds/leaderboard-world.jpg");
 
 const FILTERS = [
-  { key: "global", label: "Общий рейтинг", icon: "globe-outline" },
-  { key: "countries", label: "По странам", icon: "earth-outline" },
-  { key: "today", label: "За сегодня", icon: "calendar-outline" },
-  { key: "all", label: "За всё время", icon: "diamond-outline" },
+  { key: "global", label: "Общий", icon: "globe-outline" },
+  { key: "countries", label: "Страны", icon: "earth-outline" },
+  { key: "today", label: "Сегодня", icon: "calendar-outline" },
+  { key: "all", label: "Всё время", icon: "infinite-outline" },
 ];
 
 export default function LeaderboardScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const [items, setItems] = useState([]);
   const [stats, setStats] = useState({ xp: 0, territories: 0, achievements: 0 });
-  const [filter, setFilter] = useState(FILTERS[0].key);
+  const [filter, setFilter] = useState("global");
   const [pawns, setPawns] = useState(DEFAULT_PAWNS);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    const [leaderboardItems, playerStats, content] = await Promise.all([getLeaderboard(), getPlayerStats(), getGameContent()]);
-    setItems(leaderboardItems);
-    setStats(playerStats);
-    setPawns(content.pawns || DEFAULT_PAWNS);
+    try {
+      const [leaderboardItems, playerStats, content, storedUser] = await Promise.all([
+        getLeaderboard(),
+        getPlayerStats(),
+        getGameContent(),
+        getStoredUser(),
+      ]);
+      setItems(Array.isArray(leaderboardItems) ? leaderboardItems : []);
+      setStats(playerStats);
+      setPawns(content.pawns?.length ? content.pawns : DEFAULT_PAWNS);
+      setCurrentUser(storedUser);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     load();
     const unsubscribe = navigation.addListener("focus", load);
-    return unsubscribe;
+    return () => unsubscribe?.();
   }, [navigation]);
 
-  const normalized = useMemo(() => ensureLeaderboard(items), [items]);
-  const topThree = normalized.slice(0, 3);
-  const list = normalized.slice(3);
+  const realUsers = useMemo(
+    () => mergeCurrentUser(items, currentUser, stats),
+    [currentUser, items, stats]
+  );
+  const filtered = useMemo(() => applyFilter(realUsers, filter), [filter, realUsers]);
+  const topThree = filtered.slice(0, 3);
+  const list = filtered.slice(3);
   const podiumOrder = [topThree[1], topThree[0], topThree[2]].filter(Boolean);
+  const cardWidth = Math.max(101, Math.min(132, (width - 50) / 3));
+  const currentIndex = filtered.findIndex((item) => isSameUser(item, currentUser));
 
   return (
-    <ImageBackground source={leaderboardBg} style={styles.bg} resizeMode="cover">
-      <View style={styles.scrim} />
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 34 }]} showsVerticalScrollIndicator={false}>
-        <View style={styles.heroStats}>
-          <HeroStat value={stats.xp || 0} label="XP" />
-          <HeroStat value={stats.territories || 0} label="км²" />
-          <HeroStat value={stats.achievements || 0} label="ачивки" />
+    <View style={styles.root}>
+      <LivingWorld source={leaderboardBg} fogOpacity={0.34} windOpacity={0.18} scrim="rgba(1, 9, 12, 0.54)" />
+
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 14 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.brandHeader}>
+          <Text style={styles.logo}>TOURISK</Text>
+          <View style={styles.brandRule}>
+            <View style={styles.ruleLine} />
+            <Text style={styles.ruleDiamond}>◇</Text>
+            <View style={styles.ruleLine} />
+          </View>
         </View>
 
-        <Text style={styles.title}>Рейтинг исследователей</Text>
-        <Text style={styles.subtitle}>Путешествуй. Исследуй. Будь первым.</Text>
+        <View style={styles.titleRow}>
+          <View style={styles.titleCopy}>
+            <Text style={styles.title}>Лучшие{`\n`}исследователи</Text>
+            <Text style={styles.subtitle}>Здесь побеждает путь, а не громкость профиля.</Text>
+          </View>
+          <View style={styles.trophyButton}>
+            <Ionicons name="trophy" size={25} color="#b8f55b" />
+          </View>
+        </View>
+
+        <View style={styles.summaryCard}>
+          <HeroStat icon="sparkles" value={stats.xp || 0} label="XP" />
+          <View style={styles.summaryDivider} />
+          <HeroStat icon="map" value={stats.territories || 0} label="открытий" />
+          <View style={styles.summaryDivider} />
+          <HeroStat icon="trophy" value={stats.achievements || 0} label="достижений" />
+        </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-          {FILTERS.map((item) => (
-            <TouchableOpacity key={item.key} activeOpacity={0.85} style={[styles.filterPill, filter === item.key && styles.filterActive]} onPress={() => setFilter(item.key)}>
-              <Ionicons name={item.icon} size={18} color={filter === item.key ? "#a9ec56" : "rgba(255,255,255,0.6)"} />
-              <Text style={[styles.filterText, filter === item.key && styles.filterTextActive]}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.podiumScroll}>
-          {podiumOrder.map((item) => {
-            const place = normalized.findIndex((user) => user.id === item.id) + 1;
-            return <PodiumCard key={item.id} item={item} place={place} first={place === 1} pawns={pawns} />;
+          {FILTERS.map((item) => {
+            const active = filter === item.key;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                activeOpacity={0.82}
+                style={[styles.filterPill, active && styles.filterActive]}
+                onPress={() => setFilter(item.key)}
+              >
+                <Ionicons name={item.icon} size={17} color={active ? "#08140d" : "rgba(255,255,255,0.58)"} />
+                <Text style={[styles.filterText, active && styles.filterTextActive]}>{item.label}</Text>
+              </TouchableOpacity>
+            );
           })}
         </ScrollView>
 
-        <View style={styles.listPanel}>
-          {list.map((item, index) => (
-            <View key={item.id || `${item.nickname}-${index}`} style={styles.row}>
-              <Text style={styles.place}>{index + 4}</Text>
-              <Image source={getSelectedPawnSource(pawns, item.selectedPawn)} style={styles.rowPawn} />
-              <View style={styles.rowBody}>
-                <Text style={styles.rowName}>{item.nickname || "Explorer"}</Text>
-                <Text style={styles.rowCountry}>📍 {item.country || "Мир"}</Text>
+        {loading ? (
+          <EmptyState icon="hourglass-outline" title="Загружаем рейтинг" text="Собираем реальные данные исследователей." />
+        ) : filtered.length ? (
+          <>
+            <View style={styles.podiumSection}>
+              <View style={styles.sectionHeading}>
+                <Text style={styles.sectionTitle}>Пьедестал мира</Text>
+                <Text style={styles.sectionMeta}>{scoreLabel(filter)}</Text>
               </View>
-              <Text style={styles.rowXp}>{formatNumber(item.xp || 0)} XP</Text>
-              <Text style={styles.laurel}>❧</Text>
+              <View style={styles.podiumRow}>
+                {podiumOrder.map((item) => {
+                  const place = filtered.findIndex((user) => user.id === item.id) + 1;
+                  return (
+                    <PodiumCard
+                      key={item.id || `${item.nickname}-${place}`}
+                      item={item}
+                      place={place}
+                      first={place === 1}
+                      pawns={pawns}
+                      width={cardWidth}
+                    />
+                  );
+                })}
+              </View>
             </View>
-          ))}
-        </View>
+
+            <View style={styles.listPanel}>
+              <View style={styles.listHeader}>
+                <Text style={styles.listHeaderText}>Исследователи</Text>
+                <Text style={styles.listCount}>{filtered.length} в рейтинге</Text>
+              </View>
+              {list.map((item, index) => (
+                <RankingRow
+                  key={item.id || `${item.nickname}-${index}`}
+                  item={item}
+                  place={index + 4}
+                  pawns={pawns}
+                  current={isSameUser(item, currentUser)}
+                />
+              ))}
+              {!list.length && topThree.length ? (
+                <Text style={styles.shortListText}>В рейтинге пока только {topThree.length}. Новые участники появятся после реальных открытий.</Text>
+              ) : null}
+            </View>
+
+            {currentUser && currentIndex >= 0 && currentIndex > 2 ? (
+              <View style={styles.myPlaceCard}>
+                <Text style={styles.myPlaceLabel}>МОЁ МЕСТО</Text>
+                <Text style={styles.myPlaceNumber}>#{currentIndex + 1}</Text>
+                <Text numberOfLines={1} style={styles.myPlaceName}>{currentUser.nickname || "Explorer"}</Text>
+                <Text style={styles.myPlaceXp}>{formatNumber(filtered[currentIndex]?.xp || stats.xp)} XP</Text>
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <EmptyState icon="trophy-outline" title="Рейтинг пока пуст" text="Здесь появятся только настоящие пользователи после первых GPS-открытий." />
+        )}
       </ScrollView>
-    </ImageBackground>
+    </View>
   );
 }
 
-function HeroStat({ value, label }) {
+function HeroStat({ icon, value, label }) {
   return (
-    <View style={styles.heroStatItem}>
-      <Text style={styles.heroStatText}>{formatNumber(value)}</Text>
+    <View style={styles.heroStat}>
+      <Ionicons name={icon} size={20} color="#b8f55b" />
+      <Text style={styles.heroStatValue}>{formatNumber(value)}</Text>
       <Text style={styles.heroStatLabel}>{label}</Text>
     </View>
   );
 }
 
-function PodiumCard({ item, place, first, pawns }) {
+function PodiumCard({ item, place, first, pawns, width }) {
+  const pawn = getSelectedPawn(pawns, item.selectedPawn);
+  const color = podiumColor(place, pawn);
   return (
-    <View style={[styles.podiumCard, first && styles.firstPlace]}>
-      <View style={[styles.medal, place === 2 && styles.silver, place === 3 && styles.bronze]}>
+    <View style={[styles.podiumCard, { width, borderColor: `${color}75` }, first && styles.firstPlace]}>
+      <View style={[styles.podiumGlow, { backgroundColor: color, shadowColor: color }]} />
+      <View style={[styles.medal, { backgroundColor: medalColor(place) }]}>
         <Text style={styles.medalText}>{place}</Text>
       </View>
-      <View style={[styles.pawnCrown, first && styles.pawnCrownFirst]}>
-        <Image source={getSelectedPawnSource(pawns, item.selectedPawn)} style={styles.podiumPawn} />
-      </View>
+      <RarityAvatar
+        source={getPawnSource(pawn)}
+        fallbackSource={getLocalPawnFallback(pawn)}
+        rarity={pawn.rarity}
+        glowColor={color}
+        size={first ? 92 : 78}
+        selected={first}
+      />
       <Text numberOfLines={1} style={styles.podiumName}>{item.nickname || "Explorer"}</Text>
-      <Text numberOfLines={1} style={styles.podiumCountry}>📍 {item.country || "Мир"}</Text>
-      <Text style={styles.podiumXp}>{formatNumber(item.xp || 0)} XP</Text>
+      <Text numberOfLines={1} style={styles.podiumCountry}>{countryLine(item)}</Text>
+      <Text style={styles.podiumXp}>{formatNumber(item.xp || 0)}</Text>
+      <Text style={styles.podiumXpLabel}>XP</Text>
     </View>
   );
 }
 
-function ensureLeaderboard(items) {
-  const base = items?.length ? items : [];
-  const demos = [
-    { id: "demo-artur", nickname: "Artur", country: "Армения", xp: 2580, selectedPawn: "pawn_green" },
-    { id: "demo-liana", nickname: "Liana", country: "Грузия", xp: 1250, selectedPawn: "pawn_green" },
-    { id: "demo-dmitry", nickname: "Dmitry", country: "Россия", xp: 980, selectedPawn: "pawn_green" },
-    { id: "demo-alex", nickname: "Alex", country: "Турция", xp: 870, selectedPawn: "pawn_green" },
-    { id: "demo-mariam", nickname: "Mariam", country: "ОАЭ", xp: 760, selectedPawn: "pawn_green" },
-    { id: "demo-sergey", nickname: "Sergey", country: "Россия", xp: 650, selectedPawn: "pawn_green" },
-    { id: "demo-anna", nickname: "Anna", country: "Египет", xp: 540, selectedPawn: "pawn_green" },
-    { id: "demo-kenji", nickname: "Kenji", country: "Япония", xp: 430, selectedPawn: "pawn_green" },
-    { id: "demo-lucas", nickname: "Lucas", country: "Бразилия", xp: 320, selectedPawn: "pawn_green" },
-    { id: "demo-sophia", nickname: "Sophia", country: "Испания", xp: 210, selectedPawn: "pawn_green" },
-  ];
-  const map = new Map([...base, ...demos].map((item) => [item.id || item.nickname, item]));
-  return Array.from(map.values()).sort((a, b) => (b.xp || 0) - (a.xp || 0));
+function RankingRow({ item, place, pawns, current }) {
+  const pawn = getSelectedPawn(pawns, item.selectedPawn);
+  return (
+    <View style={[styles.row, current && styles.currentRow]}>
+      <Text style={[styles.place, current && styles.currentText]}>{place}</Text>
+      <RarityAvatar
+        source={getPawnSource(pawn)}
+        fallbackSource={getLocalPawnFallback(pawn)}
+        rarity={pawn.rarity}
+        glowColor={pawn.glowColor}
+        size={45}
+        selected={current}
+      />
+      <View style={styles.rowCopy}>
+        <Text numberOfLines={1} style={styles.rowName}>{current ? "Вы" : item.nickname || "Explorer"}</Text>
+        <Text numberOfLines={1} style={styles.rowCountry}>{flagFor(item.country)} {normalizeCountry(item.country || "Мир")}</Text>
+      </View>
+      <Text style={styles.rowXp}>{formatNumber(item.xp || 0)} <Text style={styles.rowXpUnit}>XP</Text></Text>
+    </View>
+  );
+}
+
+function EmptyState({ icon, title, text }) {
+  return (
+    <View style={styles.emptyState}>
+      <View style={styles.emptyIcon}>
+        <Ionicons name={icon} size={27} color="#b8f55b" />
+      </View>
+      <Text style={styles.emptyTitle}>{title}</Text>
+      <Text style={styles.emptyText}>{text}</Text>
+    </View>
+  );
+}
+
+function mergeCurrentUser(items, currentUser, stats) {
+  const cleanItems = (Array.isArray(items) ? items : []).filter((item) => item && !item.isBlocked);
+  if (!currentUser) return cleanItems.sort((a, b) => Number(b.xp || 0) - Number(a.xp || 0));
+
+  const local = {
+    ...currentUser,
+    id: currentUser.id || "local-user",
+    xp: Math.max(Number(currentUser.xp || 0), Number(stats?.xp || 0)),
+    achievementsCount: Math.max(Number(currentUser.achievementsCount || 0), Number(stats?.achievements || 0)),
+    territories: Math.max(Number(currentUser.territories || 0), Number(stats?.territories || 0)),
+    selectedPawn: currentUser.selectedPawn || stats?.selectedPawn || "pawn_green",
+    country: normalizeCountry(
+      currentUser.country
+      || (Array.isArray(currentUser.countries) ? currentUser.countries[currentUser.countries.length - 1] : "")
+      || "Мир"
+    ),
+  };
+
+  const found = cleanItems.some((item) => isSameUser(item, local));
+  const merged = found
+    ? cleanItems.map((item) => (isSameUser(item, local) ? { ...item, ...local, xp: Math.max(Number(item.xp || 0), local.xp) } : item))
+    : [...cleanItems, local];
+  return merged.sort((a, b) => Number(b.xp || 0) - Number(a.xp || 0));
+}
+
+function applyFilter(items, filter) {
+  if (filter === "countries") {
+    const groups = new Map();
+    items.forEach((item) => {
+      const country = normalizeCountry(item.country || "Мир");
+      const current = groups.get(country) || {
+        id: `country-${country}`,
+        nickname: country,
+        country,
+        xp: 0,
+        members: 0,
+        selectedPawn: item.selectedPawn || "pawn_green",
+      };
+      current.xp += Number(item.xp || 0);
+      current.members += 1;
+      groups.set(country, current);
+    });
+    return Array.from(groups.values()).sort((a, b) => b.xp - a.xp);
+  }
+
+  if (filter === "today") {
+    const today = dateKey(new Date());
+    return items
+      .filter((item) => dateKey(item.updatedAt || item.lastActiveDate) === today)
+      .sort((a, b) => Number(b.xp || 0) - Number(a.xp || 0));
+  }
+
+  return [...items].sort((a, b) => Number(b.xp || 0) - Number(a.xp || 0));
+}
+
+function scoreLabel(filter) {
+  if (filter === "countries") return "сумма XP стран";
+  if (filter === "today") return "активны сегодня";
+  if (filter === "all") return "за всё время";
+  return "общий рейтинг";
+}
+
+function isSameUser(item, user) {
+  if (!item || !user) return false;
+  if (item.id && user.id && item.id === user.id) return true;
+  if (item.email && user.email && item.email === user.email) return true;
+  return false;
+}
+
+function dateKey(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+}
+
+function countryLine(item) {
+  if (item.members) return `${item.members} исследователей`;
+  const country = normalizeCountry(item.country || "Мир");
+  return `${flagFor(country)} ${country}`;
+}
+
+function normalizeCountry(value) {
+  const raw = String(value || "").trim();
+  const lower = raw.toLowerCase();
+  if (["kyrgyzstan", "kyrgyz republic", "киргизия", "кыргызстан", "кыргызская республика"].includes(lower)) return "Кыргызстан";
+  return raw || "Мир";
+}
+
+function flagFor(country) {
+  const value = String(country || "").toLowerCase();
+  if (value.includes("кырг") || value.includes("kyrgyz")) return "🇰🇬";
+  if (value.includes("каз")) return "🇰🇿";
+  if (value.includes("арм")) return "🇦🇲";
+  if (value.includes("груз")) return "🇬🇪";
+  if (value.includes("рос")) return "🇷🇺";
+  if (value.includes("итал")) return "🇮🇹";
+  if (value.includes("япон")) return "🇯🇵";
+  if (value.includes("исп")) return "🇪🇸";
+  if (value.includes("фран")) return "🇫🇷";
+  return "🌍";
+}
+
+function podiumColor(place, pawn) {
+  if (place === 1) return "#f4c451";
+  if (place === 2) return "#b6c5d3";
+  if (place === 3) return "#e58a48";
+  return pawn?.glowColor || rarityColor(pawn?.rarity);
+}
+
+function medalColor(place) {
+  if (place === 1) return "#f4c451";
+  if (place === 2) return "#d8e3eb";
+  return "#e58a48";
 }
 
 function formatNumber(value) {
@@ -136,40 +374,371 @@ function formatNumber(value) {
 }
 
 const styles = StyleSheet.create({
-  bg: { flex: 1, backgroundColor: "#04120d" },
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(1, 11, 14, 0.48)" },
-  content: { paddingBottom: 120 },
-  heroStats: { flexDirection: "row", justifyContent: "space-around", paddingHorizontal: 54, minHeight: 44 },
-  heroStatItem: { minWidth: 68, alignItems: "center" },
-  heroStatText: { color: "#fff", fontSize: 27, fontWeight: "900", textShadowColor: "rgba(0,0,0,0.86)", textShadowRadius: 10 },
-  heroStatLabel: { color: "rgba(255,255,255,0.62)", fontSize: 11, fontWeight: "800" },
-  title: { marginTop: 64, paddingHorizontal: 20, color: "#fff", fontSize: 33, fontWeight: "800", textAlign: "center", textShadowColor: "rgba(0,0,0,0.86)", textShadowRadius: 12 },
-  subtitle: { marginTop: 7, paddingHorizontal: 20, color: "rgba(255,255,255,0.82)", fontSize: 16, fontWeight: "700", textAlign: "center" },
-  filters: { marginTop: 30, paddingHorizontal: 12 },
-  filterPill: { height: 48, paddingHorizontal: 14, borderRadius: 0, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(5, 20, 21, 0.88)", borderRightWidth: 1, borderRightColor: "rgba(255,255,255,0.08)" },
-  filterActive: { backgroundColor: "rgba(118, 163, 43, 0.2)" },
-  filterText: { color: "rgba(255,255,255,0.62)", fontSize: 14, fontWeight: "900" },
-  filterTextActive: { color: "#a9ec56" },
-  podiumScroll: { paddingHorizontal: 12, paddingTop: 38, paddingBottom: 8, gap: 16 },
-  podiumCard: { width: 178, height: 232, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(5, 20, 21, 0.90)", borderWidth: 1, borderColor: "rgba(255,255,255,0.13)" },
-  firstPlace: { width: 204, height: 262, borderColor: "rgba(244, 191, 66, 0.72)", backgroundColor: "rgba(73, 61, 11, 0.48)", shadowColor: "#f4bf42", shadowOpacity: 0.22, shadowRadius: 20 },
-  medal: { position: "absolute", top: -20, width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#f3c34d", borderWidth: 2, borderColor: "rgba(255,255,255,0.65)" },
-  silver: { backgroundColor: "#c7d2dc" },
-  bronze: { backgroundColor: "#c47d3c" },
-  medalText: { color: "#2b2100", fontSize: 19, fontWeight: "900" },
-  pawnCrown: { width: 108, height: 108, borderRadius: 54, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
-  pawnCrownFirst: { borderColor: "rgba(244, 191, 66, 0.68)", backgroundColor: "rgba(244, 191, 66, 0.13)" },
-  podiumPawn: { width: 88, height: 88, resizeMode: "contain" },
-  podiumName: { marginTop: 12, color: "#fff", fontSize: 20, fontWeight: "900" },
-  podiumCountry: { marginTop: 4, color: "rgba(255,255,255,0.65)", fontSize: 14, fontWeight: "800" },
-  podiumXp: { marginTop: 12, color: "#a9ec56", fontSize: 20, fontWeight: "900" },
-  listPanel: { marginTop: 12, marginHorizontal: 0, overflow: "hidden", backgroundColor: "rgba(5, 20, 21, 0.88)", borderTopWidth: 1, borderBottomWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-  row: { minHeight: 70, flexDirection: "row", alignItems: "center", paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)" },
-  place: { width: 28, color: "rgba(255,255,255,0.55)", fontWeight: "900" },
-  rowPawn: { width: 46, height: 46, resizeMode: "contain" },
-  rowBody: { flex: 1, marginLeft: 10 },
-  rowName: { color: "#fff", fontSize: 17, fontWeight: "800" },
-  rowCountry: { marginTop: 3, color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: "800" },
-  rowXp: { color: "#a9ec56", fontSize: 15, fontWeight: "900" },
-  laurel: { marginLeft: 8, color: "#a9ec56", opacity: 0.5, fontSize: 20 },
+  root: {
+    flex: 1,
+    overflow: "hidden",
+    backgroundColor: "#020d0d",
+  },
+  content: {
+    paddingHorizontal: 14,
+    paddingBottom: 164,
+  },
+  brandHeader: {
+    alignItems: "center",
+  },
+  logo: {
+    color: "rgba(255,255,255,0.94)",
+    fontSize: 24,
+    fontWeight: "300",
+    letterSpacing: 8,
+  },
+  brandRule: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  ruleLine: {
+    width: 49,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.22)",
+  },
+  ruleDiamond: {
+    color: "rgba(255,255,255,0.68)",
+    fontSize: 13,
+  },
+  titleRow: {
+    marginTop: 17,
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  titleCopy: {
+    flex: 1,
+  },
+  title: {
+    color: "#fff",
+    fontSize: 34,
+    lineHeight: 37,
+    fontWeight: "900",
+    letterSpacing: -1.1,
+  },
+  subtitle: {
+    marginTop: 7,
+    color: "rgba(255,255,255,0.48)",
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "700",
+  },
+  trophyButton: {
+    width: 55,
+    height: 55,
+    marginTop: 2,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(169,236,86,0.10)",
+    borderWidth: 1,
+    borderColor: "rgba(169,236,86,0.24)",
+  },
+  summaryCard: {
+    minHeight: 104,
+    marginTop: 16,
+    borderRadius: 25,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(2,24,22,0.94)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  heroStat: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroStatValue: {
+    marginTop: 5,
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "900",
+  },
+  heroStatLabel: {
+    marginTop: 2,
+    color: "rgba(255,255,255,0.39)",
+    fontSize: 8,
+    fontWeight: "800",
+  },
+  summaryDivider: {
+    width: 1,
+    height: 48,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  filters: {
+    gap: 9,
+    paddingTop: 15,
+    paddingRight: 15,
+  },
+  filterPill: {
+    minHeight: 49,
+    paddingHorizontal: 16,
+    borderRadius: 19,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    backgroundColor: "rgba(3,25,23,0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+  },
+  filterActive: {
+    backgroundColor: "#b8f55b",
+    borderColor: "#c9ff78",
+  },
+  filterText: {
+    color: "rgba(255,255,255,0.58)",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  filterTextActive: {
+    color: "#08140d",
+  },
+  podiumSection: {
+    marginTop: 18,
+  },
+  sectionHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  sectionMeta: {
+    color: "rgba(255,255,255,0.39)",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  podiumRow: {
+    minHeight: 278,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 7,
+  },
+  podiumCard: {
+    minHeight: 244,
+    paddingHorizontal: 8,
+    paddingTop: 22,
+    paddingBottom: 13,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    overflow: "hidden",
+    backgroundColor: "rgba(2,24,23,0.94)",
+    borderWidth: 1,
+  },
+  firstPlace: {
+    minHeight: 276,
+    backgroundColor: "rgba(67,50,14,0.82)",
+  },
+  podiumGlow: {
+    position: "absolute",
+    top: 48,
+    width: 94,
+    height: 94,
+    borderRadius: 47,
+    opacity: 0.14,
+    shadowOpacity: 0.72,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  medal: {
+    position: "absolute",
+    top: -1,
+    width: 39,
+    height: 39,
+    borderBottomLeftRadius: 15,
+    borderBottomRightRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  medalText: {
+    color: "#1a160c",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+  podiumName: {
+    marginTop: 7,
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  podiumCountry: {
+    marginTop: 4,
+    color: "rgba(255,255,255,0.46)",
+    fontSize: 8,
+    fontWeight: "700",
+  },
+  podiumXp: {
+    marginTop: 8,
+    color: "#b8f55b",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+  podiumXpLabel: {
+    marginTop: 1,
+    color: "rgba(255,255,255,0.35)",
+    fontSize: 7,
+    fontWeight: "800",
+  },
+  listPanel: {
+    marginTop: 14,
+    borderRadius: 25,
+    padding: 11,
+    backgroundColor: "rgba(2,22,21,0.94)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  listHeader: {
+    paddingHorizontal: 5,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  listHeaderText: {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+  listCount: {
+    color: "rgba(255,255,255,0.38)",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  row: {
+    minHeight: 70,
+    marginTop: 7,
+    paddingHorizontal: 11,
+    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.025)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+  },
+  currentRow: {
+    backgroundColor: "rgba(74,126,36,0.34)",
+    borderColor: "rgba(184,245,91,0.76)",
+  },
+  place: {
+    width: 28,
+    color: "rgba(255,255,255,0.48)",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  currentText: {
+    color: "#b8f55b",
+  },
+  rowCopy: {
+    flex: 1,
+    marginLeft: 9,
+  },
+  rowName: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  rowCountry: {
+    marginTop: 3,
+    color: "rgba(255,255,255,0.43)",
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  rowXp: {
+    color: "#b8f55b",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  rowXpUnit: {
+    fontSize: 8,
+    color: "rgba(184,245,91,0.68)",
+  },
+  shortListText: {
+    paddingHorizontal: 7,
+    paddingVertical: 18,
+    color: "rgba(255,255,255,0.42)",
+    fontSize: 9,
+    lineHeight: 14,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  myPlaceCard: {
+    minHeight: 73,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    borderRadius: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(52,106,31,0.44)",
+    borderWidth: 1,
+    borderColor: "rgba(184,245,91,0.42)",
+  },
+  myPlaceLabel: {
+    color: "rgba(255,255,255,0.43)",
+    fontSize: 7,
+    fontWeight: "900",
+  },
+  myPlaceNumber: {
+    marginLeft: 6,
+    color: "#b8f55b",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  myPlaceName: {
+    flex: 1,
+    marginLeft: 12,
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  myPlaceXp: {
+    color: "#b8f55b",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  emptyState: {
+    minHeight: 210,
+    marginTop: 20,
+    borderRadius: 27,
+    padding: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(2,23,22,0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  emptyIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(169,236,86,0.10)",
+  },
+  emptyTitle: {
+    marginTop: 14,
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  emptyText: {
+    marginTop: 7,
+    color: "rgba(255,255,255,0.46)",
+    fontSize: 10,
+    lineHeight: 15,
+    fontWeight: "700",
+    textAlign: "center",
+  },
 });

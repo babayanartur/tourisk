@@ -1,39 +1,57 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  ImageBackground,
+  Animated,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { loginWithProvider, requestEmailCode, verifyEmailCode } from "../services/authService";
+import LegalDocumentScreen from "./LegalDocumentScreen";
+import LivingWorld from "../components/LivingWorld";
 
-const heroBg = require("../brand/hero/hero-v1.png");
+const authBg = require("../assets/backgrounds/auth-world.jpg");
 
 export default function AuthScreen({ onAuth }) {
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [policyAccepted, setPolicyAccepted] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [legalType, setLegalType] = useState(null);
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const cardY = useRef(new Animated.Value(28)).current;
 
   const cleanEmail = useMemo(() => email.trim().toLowerCase(), [email]);
 
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(cardOpacity, { toValue: 1, duration: 650, useNativeDriver: true }),
+      Animated.spring(cardY, { toValue: 0, friction: 8, tension: 58, useNativeDriver: true }),
+    ]).start();
+
+  }, [cardOpacity, cardY]);
+
   const requirePolicy = () => {
     if (policyAccepted) return true;
-    Alert.alert("Оферта и политика", "Сначала прими политику и оферту. Да, бюрократия победила романтику.");
+    Alert.alert("Документы", "Примите политику конфиденциальности и пользовательское соглашение.");
     return false;
   };
 
   const sendCode = async () => {
     if (!requirePolicy()) return;
-    if (!cleanEmail.includes("@")) {
-      Alert.alert("Почта", "Введи нормальную почту. Символ @ всё ещё нужен, человечество держится на мелочах.");
+    if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) {
+      Alert.alert("Почта", "Введите корректный адрес электронной почты.");
       return;
     }
 
@@ -41,9 +59,9 @@ export default function AuthScreen({ onAuth }) {
     try {
       await requestEmailCode(cleanEmail);
       setCodeSent(true);
-      Alert.alert("Код отправлен", "На этапе тестировки код входа: 1111");
+      Alert.alert("Код отправлен", "Для тестовой сборки используйте код 1111.");
     } catch (error) {
-      Alert.alert("Ошибка", error.message);
+      Alert.alert("Ошибка", error.message || "Не удалось отправить код.");
     } finally {
       setLoading(false);
     }
@@ -51,12 +69,17 @@ export default function AuthScreen({ onAuth }) {
 
   const confirmCode = async () => {
     if (!requirePolicy()) return;
+    if (code.trim().length !== 4) {
+      Alert.alert("Код", "Введите четыре цифры из письма.");
+      return;
+    }
+
     setLoading(true);
     try {
       const user = await verifyEmailCode(cleanEmail, code);
       onAuth(user);
     } catch (error) {
-      Alert.alert("Вход", error.message);
+      Alert.alert("Вход", error.message || "Не удалось войти.");
     } finally {
       setLoading(false);
     }
@@ -69,219 +92,196 @@ export default function AuthScreen({ onAuth }) {
       const user = await loginWithProvider(provider);
       onAuth(user);
     } catch (error) {
-      Alert.alert("Вход", error.message);
+      Alert.alert("Вход", error.message || "Не удалось войти.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ImageBackground source={heroBg} resizeMode="cover" style={styles.bg}>
-      <View style={styles.scrim} />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.container}
-      >
-        <View style={styles.card}>
-          <Text style={styles.logo}>TOURISK</Text>
-          <Text style={styles.title}>Вход исследователя</Text>
-          <Text style={styles.text}>Почта, Apple или Google. Для теста код всегда 1111.</Text>
+    <View style={styles.root}>
+      <LivingWorld
+        source={authBg}
+        fogOpacity={0.38}
+        windOpacity={0.24}
+        scrim="rgba(0, 8, 11, 0.24)"
+        bottomShade="rgba(0, 12, 12, 0.52)"
+      />
 
-          <TextInput
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="email@tourisk.app"
-            placeholderTextColor="rgba(255,255,255,0.42)"
-            style={styles.input}
-          />
-
-          {codeSent && (
-            <TextInput
-              value={code}
-              onChangeText={setCode}
-              keyboardType="number-pad"
-              maxLength={4}
-              placeholder="1111"
-              placeholderTextColor="rgba(255,255,255,0.42)"
-              style={styles.input}
-            />
-          )}
-
-          <TouchableOpacity
-            activeOpacity={0.9}
-            style={[styles.primaryButton, loading && styles.disabled]}
-            disabled={loading}
-            onPress={codeSent ? confirmCode : sendCode}
-          >
-            {loading ? (
-              <ActivityIndicator color="#07140d" />
-            ) : (
-              <Text style={styles.primaryText}>{codeSent ? "Войти" : "Получить код"}</Text>
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.separator}>
-            <View style={styles.line} />
-            <Text style={styles.separatorText}>или</Text>
-            <View style={styles.line} />
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 38, paddingBottom: Math.max(insets.bottom, 18) + 18 }]}
+        >
+          <View style={styles.brandBlock}>
+            <Text style={styles.brand}>TOURISK</Text>
+            <View style={styles.brandLineRow}>
+              <View style={styles.brandLine} />
+              <Text style={styles.brandDiamond}>◇</Text>
+              <View style={styles.brandLine} />
+            </View>
+            <Text style={styles.brandCaption}>ИССЛЕДУЙ РЕАЛЬНЫЙ МИР</Text>
           </View>
 
-          <TouchableOpacity activeOpacity={0.85} style={styles.providerButton} onPress={() => providerLogin("apple")}>
-            <Text style={styles.providerText}> Войти через Apple</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity activeOpacity={0.85} style={styles.providerButton} onPress={() => providerLogin("google")}>
-            <Text style={styles.providerText}>G Войти через Google</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.policyRow}
-            onPress={() => setPolicyAccepted((value) => !value)}
-          >
-            <View style={[styles.checkbox, policyAccepted && styles.checkboxActive]}>
-              <Text style={styles.checkmark}>{policyAccepted ? "✓" : ""}</Text>
+          <Animated.View style={[styles.card, { opacity: cardOpacity, transform: [{ translateY: cardY }] }]}> 
+            <View style={styles.cardHeaderIcon}>
+              <Ionicons name="compass-outline" size={26} color="#a9ec56" />
             </View>
-            <Text style={styles.policyText}>Я принимаю политику конфиденциальности и публичную оферту.</Text>
-          </TouchableOpacity>
-        </View>
+            <Text style={styles.title}>Вход исследователя</Text>
+            <Text style={styles.text}>Сохрани прогресс, открытия и место в рейтинге.</Text>
+
+            <View style={styles.inputWrap}>
+              <Ionicons name="mail-outline" size={20} color="rgba(255,255,255,0.54)" />
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="email@tourisk.app"
+                placeholderTextColor="rgba(255,255,255,0.34)"
+                style={styles.input}
+              />
+            </View>
+
+            {codeSent && (
+              <View style={styles.inputWrap}>
+                <Ionicons name="keypad-outline" size={20} color="rgba(255,255,255,0.54)" />
+                <TextInput
+                  value={code}
+                  onChangeText={setCode}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  placeholder="Код из письма"
+                  placeholderTextColor="rgba(255,255,255,0.34)"
+                  style={styles.input}
+                />
+              </View>
+            )}
+
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={[styles.primaryButton, loading && styles.disabled]}
+              disabled={loading}
+              onPress={codeSent ? confirmCode : sendCode}
+            >
+              {loading ? (
+                <ActivityIndicator color="#07140d" />
+              ) : (
+                <>
+                  <Text style={styles.primaryText}>{codeSent ? "Войти" : "Получить код"}</Text>
+                  <Ionicons name="arrow-forward" size={20} color="#07140d" />
+                </>
+              )}
+            </TouchableOpacity>
+
+            {codeSent && (
+              <TouchableOpacity activeOpacity={0.8} style={styles.changeEmailButton} onPress={() => { setCodeSent(false); setCode(""); }}>
+                <Text style={styles.changeEmailText}>Изменить почту</Text>
+              </TouchableOpacity>
+            )}
+
+            <View style={styles.separator}>
+              <View style={styles.line} />
+              <Text style={styles.separatorText}>или продолжить через</Text>
+              <View style={styles.line} />
+            </View>
+
+            <View style={styles.providerRow}>
+              <TouchableOpacity activeOpacity={0.85} style={styles.providerButton} onPress={() => providerLogin("apple")}>
+                <Ionicons name="logo-apple" size={22} color="#fff" />
+                <Text style={styles.providerText}>Apple</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity activeOpacity={0.85} style={styles.providerButton} onPress={() => providerLogin("google")}>
+                <Text style={styles.googleMark}>G</Text>
+                <Text style={styles.providerText}>Google</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity activeOpacity={0.85} style={styles.policyRow} onPress={() => setPolicyAccepted((value) => !value)}>
+              <View style={[styles.checkbox, policyAccepted && styles.checkboxActive]}>
+                {policyAccepted ? <Ionicons name="checkmark" size={17} color="#07140d" /> : null}
+              </View>
+              <Text style={styles.policyText}>Я принимаю условия использования Tourisk.</Text>
+            </TouchableOpacity>
+
+            <View style={styles.legalLinks}>
+              <TouchableOpacity onPress={() => setLegalType("privacy")}>
+                <Text style={styles.legalLink}>Политика конфиденциальности</Text>
+              </TouchableOpacity>
+              <Text style={styles.legalDot}>•</Text>
+              <TouchableOpacity onPress={() => setLegalType("terms")}>
+                <Text style={styles.legalLink}>Соглашение</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+
+          <Text style={styles.testHint}>Тестовый код: 1111</Text>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </ImageBackground>
+
+      <Modal visible={Boolean(legalType)} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setLegalType(null)}>
+        <LegalDocumentScreen type={legalType || "privacy"} onClose={() => setLegalType(null)} />
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bg: {
-    flex: 1,
-    backgroundColor: "#04120d",
-  },
-  scrim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 8, 12, 0.62)",
-  },
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 22,
-  },
+  root: { flex: 1, backgroundColor: "#020b0c" },
+  flex: { flex: 1 },
+  backgroundImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
+  topScrim: { position: "absolute", left: 0, right: 0, top: 0, height: "36%", backgroundColor: "rgba(0,7,12,0.18)" },
+  bottomScrim: { position: "absolute", left: 0, right: 0, bottom: 0, height: "66%", backgroundColor: "rgba(0,12,12,0.48)" },
+  glowOne: { position: "absolute", top: 150, left: -80, width: 220, height: 220, borderRadius: 110, backgroundColor: "rgba(96,182,255,0.08)" },
+  glowTwo: { position: "absolute", bottom: 120, right: -90, width: 250, height: 250, borderRadius: 125, backgroundColor: "rgba(169,236,86,0.08)" },
+  scrollContent: { flexGrow: 1, justifyContent: "space-between", paddingHorizontal: 18 },
+  brandBlock: { alignItems: "center", paddingTop: 6, paddingBottom: 34 },
+  brand: { color: "#fff", fontSize: 29, letterSpacing: 10, fontWeight: "300", textShadowColor: "rgba(255,255,255,0.48)", textShadowRadius: 13 },
+  brandLineRow: { marginTop: 13, flexDirection: "row", alignItems: "center", gap: 13 },
+  brandLine: { width: 54, height: 1, backgroundColor: "rgba(255,255,255,0.30)" },
+  brandDiamond: { color: "rgba(255,255,255,0.74)", fontSize: 16 },
+  brandCaption: { marginTop: 12, color: "rgba(255,255,255,0.56)", fontSize: 10, fontWeight: "900", letterSpacing: 2.2 },
   card: {
-    borderRadius: 34,
-    padding: 22,
-    backgroundColor: "rgba(5, 20, 18, 0.92)",
+    width: "100%",
+    borderRadius: 30,
+    paddingHorizontal: 18,
+    paddingTop: 28,
+    paddingBottom: 20,
+    backgroundColor: "rgba(3, 23, 22, 0.90)",
     borderWidth: 1,
-    borderColor: "rgba(183, 226, 89, 0.28)",
+    borderColor: "rgba(169,236,86,0.20)",
+    shadowColor: "#000",
+    shadowOpacity: 0.52,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 18 },
+    elevation: 20,
   },
-  logo: {
-    color: "#dff8a0",
-    fontSize: 22,
-    letterSpacing: 7,
-    fontWeight: "300",
-    textAlign: "center",
-  },
-  title: {
-    marginTop: 18,
-    color: "#fff",
-    fontSize: 31,
-    fontWeight: "900",
-    textAlign: "center",
-  },
-  text: {
-    marginTop: 10,
-    marginBottom: 18,
-    color: "rgba(255,255,255,0.72)",
-    fontSize: 15,
-    lineHeight: 21,
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  input: {
-    height: 54,
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    marginTop: 10,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: "700",
-  },
-  primaryButton: {
-    marginTop: 14,
-    height: 56,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#a8d85a",
-  },
-  disabled: {
-    opacity: 0.7,
-  },
-  primaryText: {
-    color: "#07140d",
-    fontSize: 17,
-    fontWeight: "900",
-  },
-  separator: {
-    marginVertical: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  line: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.12)",
-  },
-  separatorText: {
-    color: "rgba(255,255,255,0.52)",
-    fontWeight: "800",
-  },
-  providerButton: {
-    height: 52,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 10,
-  },
-  providerText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "900",
-  },
-  policyRow: {
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.35)",
-    marginRight: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkboxActive: {
-    backgroundColor: "#a8d85a",
-    borderColor: "#a8d85a",
-  },
-  checkmark: {
-    color: "#07140d",
-    fontWeight: "900",
-  },
-  policyText: {
-    flex: 1,
-    color: "rgba(255,255,255,0.68)",
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: "700",
-  },
+  cardHeaderIcon: { position: "absolute", top: -24, alignSelf: "center", width: 50, height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center", backgroundColor: "#08251b", borderWidth: 1, borderColor: "rgba(169,236,86,0.35)", shadowColor: "#a9ec56", shadowOpacity: 0.28, shadowRadius: 16 },
+  title: { marginTop: 8, color: "#fff", fontSize: 29, lineHeight: 34, fontWeight: "900", textAlign: "center", letterSpacing: -0.7 },
+  text: { marginTop: 8, marginBottom: 18, color: "rgba(255,255,255,0.62)", fontSize: 14, lineHeight: 20, fontWeight: "700", textAlign: "center" },
+  inputWrap: { height: 56, marginTop: 10, paddingHorizontal: 15, borderRadius: 18, flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.11)" },
+  input: { flex: 1, height: "100%", marginLeft: 10, color: "#fff", fontSize: 16, fontWeight: "800" },
+  primaryButton: { marginTop: 13, height: 58, borderRadius: 19, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#a9ec56", shadowColor: "#a9ec56", shadowOpacity: 0.26, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
+  primaryText: { color: "#07140d", fontSize: 17, fontWeight: "900" },
+  disabled: { opacity: 0.62 },
+  changeEmailButton: { alignSelf: "center", paddingVertical: 9, paddingHorizontal: 12 },
+  changeEmailText: { color: "rgba(255,255,255,0.56)", fontSize: 12, fontWeight: "800" },
+  separator: { marginVertical: 17, flexDirection: "row", alignItems: "center" },
+  line: { flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.10)" },
+  separatorText: { marginHorizontal: 10, color: "rgba(255,255,255,0.42)", fontSize: 11, fontWeight: "800" },
+  providerRow: { flexDirection: "row", gap: 10 },
+  providerButton: { flex: 1, height: 54, borderRadius: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.11)" },
+  providerText: { color: "#fff", fontSize: 15, fontWeight: "900" },
+  googleMark: { color: "#fff", fontSize: 20, fontWeight: "900" },
+  policyRow: { marginTop: 17, flexDirection: "row", alignItems: "center" },
+  checkbox: { width: 24, height: 24, borderRadius: 8, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.30)", backgroundColor: "rgba(255,255,255,0.04)" },
+  checkboxActive: { backgroundColor: "#a9ec56", borderColor: "#a9ec56" },
+  policyText: { flex: 1, marginLeft: 10, color: "rgba(255,255,255,0.66)", fontSize: 12, lineHeight: 17, fontWeight: "700" },
+  legalLinks: { marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", flexWrap: "wrap", gap: 7 },
+  legalLink: { color: "#b9ed75", fontSize: 11, fontWeight: "800", textDecorationLine: "underline" },
+  legalDot: { color: "rgba(255,255,255,0.28)", fontSize: 11 },
+  testHint: { alignSelf: "center", marginTop: 18, color: "rgba(255,255,255,0.46)", fontSize: 11, fontWeight: "800", letterSpacing: 0.7 },
 });

@@ -1,27 +1,65 @@
 import { Image } from "react-native";
 import { API_BASE_URL } from "./apiClient";
 
-const localPawn = require("../assets/player/pawn_green.png");
+export function resolveAssetUrl(rawValue) {
+  const raw = String(rawValue || "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  if (raw.startsWith("/")) return `${API_BASE_URL}${raw}`;
+  return `${API_BASE_URL}/${raw}`;
+}
+
+// Оставлено для совместимости существующих экранов. Локальных изображений
+// фигурок в mobile больше нет: весь контент приходит с backend.
+export function getLocalPawnFallback() {
+  return null;
+}
 
 export function getPawnSource(pawn) {
-  if (!pawn) return localPawn;
+  if (!pawn || typeof pawn === "string") return null;
+  if (typeof pawn === "number") return pawn;
 
-  const raw = pawn.imagePath || pawn.imageUrl || pawn.image || "";
-  if (!raw || raw.startsWith("local:")) return localPawn;
+  const raw = pawn.imageUrl || pawn.imagePath || pawn.image || "";
   if (typeof raw === "number") return raw;
-  if (raw.startsWith("http://") || raw.startsWith("https://")) return { uri: raw };
-  if (raw.startsWith("/")) return { uri: `${API_BASE_URL}${raw}` };
-  return { uri: `${API_BASE_URL}/${raw}` };
+
+  const remote = resolveAssetUrl(raw);
+  return remote ? { uri: remote } : null;
+}
+
+export function getContentImageSource(item) {
+  const imagePath = item?.imagePath || item?.image || "";
+  const shouldUseBundledImage = item?.localImage
+    && (!imagePath || imagePath === item.defaultImagePath);
+  if (shouldUseBundledImage) return item.localImage;
+
+  const explicitUrl = item?.imageUrl || "";
+  if (explicitUrl) return { uri: resolveAssetUrl(explicitUrl) };
+
+  const remote = typeof imagePath === "number" ? imagePath : resolveAssetUrl(imagePath);
+  if (typeof remote === "number") return remote;
+  if (remote) return { uri: remote };
+  return item?.localImage || null;
+}
+
+export function getSelectedPawn(pawns = [], selectedPawn = "pawn_green") {
+  return pawns.find((item) => item.id === selectedPawn) || pawns[0] || {
+    id: "pawn_green",
+    rarity: "common",
+    glowColor: "#a9ec56",
+  };
 }
 
 export function getSelectedPawnSource(pawns = [], selectedPawn = "pawn_green") {
-  const found = pawns.find((item) => item.id === selectedPawn) || pawns[0];
-  return getPawnSource(found);
+  return getPawnSource(getSelectedPawn(pawns, selectedPawn));
+}
+
+export function getPawnRarity(pawns = [], selectedPawn = "pawn_green") {
+  return getSelectedPawn(pawns, selectedPawn)?.rarity || "common";
 }
 
 export function preloadPawnImages(pawns = []) {
   pawns.forEach((pawn) => {
-    const src = getPawnSource(pawn);
-    if (src?.uri) Image.prefetch(src.uri).catch(() => {});
+    const source = getPawnSource(pawn);
+    if (source?.uri) Image.prefetch(source.uri).catch(() => {});
   });
 }

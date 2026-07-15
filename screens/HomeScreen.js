@@ -1,271 +1,452 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
-  Image,
-  ImageBackground,
+  Easing,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getPlayerStats } from "../services/playerStats";
 
-const homeBg = require("../docs/mvp-yerevan/Home_v1.1.png");
+import StaticPawn from "../components/StaticPawn";
+import DailyJourneyCard from "../components/DailyJourneyCard";
+import GoldenTrailText from "../components/GoldenTrailText";
+import LivingWorld from "../components/LivingWorld";
+import ProgressBar from "../components/ProgressBar";
+import { DEFAULT_PAWNS, getGameContent } from "../services/gameService";
+import { getStoredUser } from "../services/authService";
+import { getEveningJourney, markEveningJourneyShown } from "../services/dailyJourney";
+import { getPlayerStats } from "../services/playerStats";
+import { getLocalPawnFallback, getPawnSource } from "../services/assetResolver";
+import { LevelEngine } from "../src/maps/services/LevelEngine";
+
+const homeBg = require("../assets/backgrounds/home-world-clean.jpg");
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [stats, setStats] = useState({ xp: 0, territories: 0, achievements: 0, exploredKm2: 0, cities: 0, countries: 0 });
-  const pulse = useRef(new Animated.Value(0)).current;
-  const float = useRef(new Animated.Value(0)).current;
+  const { height } = useWindowDimensions();
+  const [stats, setStats] = useState({
+    xp: 0,
+    territories: 0,
+    achievements: 0,
+    exploredKm2: 0,
+    distanceKm: 0,
+    level: 1,
+  });
+  const [pawns, setPawns] = useState(DEFAULT_PAWNS);
+  const [selectedPawnId, setSelectedPawnId] = useState("pawn_green");
+  const [dailyJourney, setDailyJourney] = useState(null);
+  const [eveningHour, setEveningHour] = useState(18);
+  const enter = useRef(new Animated.Value(0)).current;
+  const messagePresence = useRef(new Animated.Value(0)).current;
 
-  const load = async () => setStats(await getPlayerStats());
+  const load = async () => {
+    const [playerStats, content, user] = await Promise.all([
+      getPlayerStats(),
+      getGameContent(),
+      getStoredUser(),
+    ]);
+    setStats(playerStats);
+    setPawns(content.pawns?.length ? content.pawns : DEFAULT_PAWNS);
+    setSelectedPawnId(user?.selectedPawn || playerStats.selectedPawn || "pawn_green");
+    const configuredEveningHour = Number(content.appConfig?.dailyJourneyHour || 18);
+    setEveningHour(configuredEveningHour);
+    setDailyJourney(await getEveningJourney({ eveningHour: configuredEveningHour }));
+  };
 
   useEffect(() => {
     load();
+    enter.setValue(0);
+    Animated.timing(enter, {
+      toValue: 1,
+      duration: 1100,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+
     const unsubscribe = navigation.addListener("focus", load);
+    const eveningTimer = setInterval(() => {
+      getEveningJourney({ eveningHour }).then(setDailyJourney).catch(() => {});
+    }, 60000);
+    return () => {
+      unsubscribe?.();
+      clearInterval(eveningTimer);
+    };
+  }, [enter, eveningHour, navigation]);
 
-    Animated.loop(
+  useEffect(() => {
+    messagePresence.setValue(0);
+    const messageLoop = Animated.loop(
       Animated.sequence([
-        Animated.timing(float, { toValue: 1, duration: 3600, useNativeDriver: true }),
-        Animated.timing(float, { toValue: 0, duration: 3600, useNativeDriver: true }),
+        Animated.timing(messagePresence, {
+          toValue: 1,
+          duration: 1800,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.delay(4800),
+        Animated.timing(messagePresence, {
+          toValue: 0,
+          duration: 2200,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.delay(1500),
       ])
-    ).start();
+    );
+    messageLoop.start();
+    return () => messageLoop.stop();
+  }, [messagePresence]);
 
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 1600, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: 1600, useNativeDriver: true }),
-      ])
-    ).start();
-
-    return unsubscribe;
-  }, [navigation, float, pulse]);
-
-  const pawnLift = float.interpolate({ inputRange: [0, 1], outputRange: [0, -9] });
-  const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
-  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.34, 0.65] });
-
-  return (
-    <ImageBackground source={homeBg} style={styles.bg} resizeMode="cover">
-      <View style={styles.topShade} />
-      <View style={styles.bottomShade} />
-
-      <View style={[styles.logoBlock, { top: insets.top + 68 }]} pointerEvents="none">
-        <Text style={styles.logo}>TOURISK</Text>
-        <View style={styles.logoLineRow}>
-          <View style={styles.logoLine} />
-          <Text style={styles.logoDiamond}>◇</Text>
-          <View style={styles.logoLine} />
-        </View>
-      </View>
-
-      <View style={[styles.titleBlock, { top: insets.top + 208 }]} pointerEvents="none">
-        <Text style={styles.title}>Мир ждёт тебя.</Text>
-        <Text style={styles.subtitle}>Каждый шаг — это история.</Text>
-        <Text style={styles.subtitle}>Каждое открытие — это ты.</Text>
-      </View>
-
-      <Animated.View style={[styles.pawnGlow, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]} />
-      <Animated.View style={[styles.pawnHalo, { transform: [{ translateY: pawnLift }] }]} />
-
-      <TouchableOpacity activeOpacity={0.92} style={styles.firstStepButton} onPress={() => navigation.navigate("Карта")}>
-        <View style={styles.buttonGlow} />
-        <Text style={styles.firstStepTitle}>🌱 Первый шаг</Text>
-        <Text style={styles.firstStepSubtitle}>— Начни свою историю —</Text>
-      </TouchableOpacity>
-
-      <View style={styles.statsPanel}>
-        <HomeStat icon="star" value={stats.xp || 0} label="XP" />
-        <HomeStat icon="leaf" value={stats.territories || 0} label="территорий" />
-        <HomeStat icon="trophy" value={stats.achievements || 0} label="ачивок" />
-      </View>
-    </ImageBackground>
+  const selectedPawn = useMemo(
+    () => pawns.find((item) => item.id === selectedPawnId) || pawns[0] || DEFAULT_PAWNS[0],
+    [pawns, selectedPawnId]
   );
-}
 
-function HomeStat({ icon, value, label }) {
-  const source = icon === "star" ? "⭐" : icon === "leaf" ? "🌿" : "🏆";
+  const level = LevelEngine.getLevel(stats.xp || 0);
+  const levelProgress = LevelEngine.getProgressPercent(stats.xp || 0);
+  const nextLevelXp = LevelEngine.getXpForNextLevel();
+  const currentLevelXp = LevelEngine.getCurrentLevelXp(stats.xp || 0);
+  const contentTranslate = enter.interpolate({ inputRange: [0, 1], outputRange: [18, 0] });
+  const compact = height < 760;
+  const pawnSize = compact ? 205 : 244;
+  const pawnTop = compact ? insets.top + 208 : Math.max(insets.top + 226, height * 0.31);
+
   return (
-    <View style={styles.statItem}>
-      <Text style={styles.statIcon}>{source}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+    <View style={styles.root}>
+      <LivingWorld source={homeBg} fogOpacity={0.30} windOpacity={0.23} scrim="rgba(0, 8, 11, 0.24)" />
+
+      <Animated.View
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top + 13,
+            opacity: enter,
+            transform: [{ translateY: contentTranslate }],
+          },
+        ]}
+      >
+        <Text style={styles.logo}>TOURISK</Text>
+        <View style={styles.brandRule}>
+          <View style={styles.ruleLine} />
+          <Text style={styles.ruleDiamond}>◇</Text>
+          <View style={styles.ruleLine} />
+        </View>
+        <Animated.View style={[styles.atmosphericMessage, { opacity: messagePresence }]}>
+          <Text style={[styles.title, compact && styles.titleCompact]}>Мир ждёт тебя.</Text>
+          <GoldenTrailText text="Каждый шаг оставляет золотой след" style={styles.goldText} />
+        </Animated.View>
+      </Animated.View>
+
+      <View pointerEvents="none" style={[styles.pawnStage, { top: pawnTop, width: pawnSize, height: pawnSize }]}> 
+        <View style={[styles.platformOuter, { width: pawnSize * 0.95, height: pawnSize * 0.34, bottom: pawnSize * 0.02 }]} />
+        <View style={[styles.platformInner, { width: pawnSize * 0.70, height: pawnSize * 0.23, bottom: pawnSize * 0.07 }]} />
+        <StaticPawn
+          source={getPawnSource(selectedPawn)}
+          fallbackSource={getLocalPawnFallback(selectedPawn)}
+          rarity={selectedPawn.rarity}
+          glowColor={selectedPawn.glowColor}
+          size={pawnSize}
+        />
+      </View>
+
+      <Animated.View
+        style={[
+          styles.bottom,
+          {
+            opacity: enter,
+            transform: [{ translateY: contentTranslate }],
+          },
+        ]}
+      >
+        <View style={styles.xpCard}>
+          <View style={styles.xpHead}>
+            <View>
+              <Text style={styles.xpEyebrow}>УРОВЕНЬ {level}</Text>
+              <Text style={styles.xpTitle}>{formatNumber(stats.xp || 0)} XP</Text>
+            </View>
+            <Text style={styles.xpNext}>{currentLevelXp}/{nextLevelXp}</Text>
+          </View>
+          <ProgressBar progress={levelProgress} height={8} color="#b8f55b" />
+        </View>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Открыть карту"
+          activeOpacity={0.86}
+          style={styles.primaryButton}
+          onPress={() => navigation.navigate("Карта")}
+        >
+          <View style={styles.buttonIcon}>
+            <Ionicons name="compass" size={25} color="#0b170c" />
+          </View>
+          <View style={styles.buttonCopy}>
+            <Text style={styles.buttonTitle}>Первый шаг</Text>
+            <Text style={styles.buttonSubtitle}>Открыть живую карту мира</Text>
+          </View>
+          <View style={styles.buttonArrow}>
+            <Ionicons name="arrow-forward" size={21} color="#efffd3" />
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.infoBlock}>
+          <InfoStat icon="sparkles" value={stats.territories || 0} label="открытий" />
+          <View style={styles.infoDivider} />
+          <InfoStat icon="footsteps" value={formatDistance(stats.distanceKm)} label="путь" />
+          <View style={styles.infoDivider} />
+          <InfoStat icon="trophy" value={stats.achievements || 0} label="достижений" />
+        </View>
+      </Animated.View>
+
+      <DailyJourneyCard
+        journey={dailyJourney}
+        onClose={async () => {
+          await markEveningJourneyShown();
+          setDailyJourney(null);
+        }}
+      />
     </View>
   );
 }
 
+function InfoStat({ icon, value, label }) {
+  return (
+    <View style={styles.infoStat}>
+      <View style={styles.infoIcon}>
+        <Ionicons name={icon} size={18} color="#b8f55b" />
+      </View>
+      <Text numberOfLines={1} style={styles.infoValue}>{value}</Text>
+      <Text numberOfLines={1} style={styles.infoLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function formatDistance(value) {
+  const number = Number(value || 0);
+  if (number < 1) return `${Math.round(number * 1000)} м`;
+  return `${number.toFixed(number >= 10 ? 0 : 1)} км`;
+}
+
+function formatNumber(value) {
+  return String(Number(value || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+
 const styles = StyleSheet.create({
-  bg: {
+  root: {
     flex: 1,
-    backgroundColor: "#04120d",
+    overflow: "hidden",
+    backgroundColor: "#020b0d",
   },
-  topShade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.03)",
-  },
-  bottomShade: {
+  header: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 290,
-    backgroundColor: "rgba(1, 12, 13, 0.48)",
+    left: 18,
+    right: 18,
+    top: 0,
+    alignItems: "center",
+    zIndex: 5,
   },
-  logoBlock: {
-    position: "absolute",
-    left: 0,
-    right: 0,
+  atmosphericMessage: {
     alignItems: "center",
   },
   logo: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 32,
-    letterSpacing: 10,
+    color: "rgba(255,255,255,0.94)",
+    fontSize: 25,
     fontWeight: "300",
-    textShadowColor: "rgba(255,255,255,0.72)",
-    textShadowRadius: 14,
+    letterSpacing: 9,
+    textShadowColor: "rgba(229,255,226,0.42)",
+    textShadowRadius: 12,
   },
-  logoLineRow: {
-    marginTop: 18,
+  brandRule: {
+    marginTop: 9,
     flexDirection: "row",
     alignItems: "center",
-    gap: 18,
+    gap: 12,
   },
-  logoLine: {
-    width: 88,
+  ruleLine: {
+    width: 54,
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.32)",
+    backgroundColor: "rgba(255,255,255,0.25)",
   },
-  logoDiamond: {
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 17,
-  },
-  titleBlock: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    alignItems: "center",
+  ruleDiamond: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 14,
   },
   title: {
-    color: "#fff",
-    fontSize: 47,
-    lineHeight: 54,
-    fontWeight: "700",
+    marginTop: 20,
+    color: "#ffffff",
+    fontSize: 39,
+    lineHeight: 45,
+    fontWeight: "900",
+    letterSpacing: -1.3,
     textAlign: "center",
-    letterSpacing: -1,
-    textShadowColor: "rgba(0,0,0,0.58)",
-    textShadowRadius: 16,
-    textShadowOffset: { width: 0, height: 4 },
+    textShadowColor: "rgba(0,0,0,0.76)",
+    textShadowRadius: 15,
+    textShadowOffset: { width: 0, height: 5 },
   },
-  subtitle: {
-    marginTop: 12,
-    color: "rgba(255,255,255,0.84)",
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: "500",
-    textAlign: "center",
-    textShadowColor: "rgba(0,0,0,0.55)",
-    textShadowRadius: 8,
+  titleCompact: {
+    marginTop: 15,
+    fontSize: 34,
+    lineHeight: 39,
   },
-  pawnGlow: {
+  goldText: {
+    marginTop: 5,
+    fontSize: 14,
+  },
+  pawnStage: {
     position: "absolute",
     alignSelf: "center",
-    bottom: 236,
-    width: 170,
-    height: 56,
-    borderRadius: 85,
-    backgroundColor: "rgba(185,255,74,0.34)",
-    shadowColor: "#b8ff4a",
-    shadowOpacity: 0.9,
-    shadowRadius: 36,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  pawnHalo: {
-    position: "absolute",
-    alignSelf: "center",
-    bottom: 248,
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderWidth: 1,
-    borderColor: "rgba(227,255,132,0.34)",
-    backgroundColor: "rgba(227,255,132,0.05)",
-  },
-  firstStepButton: {
-    position: "absolute",
-    left: 34,
-    right: 34,
-    bottom: 186,
-    height: 98,
-    borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
-    backgroundColor: "rgba(32, 75, 18, 0.88)",
-    borderWidth: 1,
-    borderColor: "rgba(205,255,94,0.48)",
-    shadowColor: "#b8ff4a",
-    shadowOpacity: 0.38,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 0 },
+    zIndex: 2,
   },
-  buttonGlow: {
+  platformOuter: {
     position: "absolute",
-    left: 28,
-    right: 28,
-    top: 0,
-    height: 2,
-    backgroundColor: "rgba(208,255,99,0.85)",
-    shadowColor: "#d0ff63",
-    shadowOpacity: 0.8,
-    shadowRadius: 15,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(183,238,89,0.20)",
+    backgroundColor: "rgba(2,18,16,0.28)",
+    transform: [{ scaleY: 0.46 }],
   },
-  firstStepTitle: {
-    color: "#fff",
-    fontSize: 31,
+  platformInner: {
+    position: "absolute",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(244,196,81,0.17)",
+    backgroundColor: "rgba(169,236,86,0.04)",
+    transform: [{ scaleY: 0.45 }],
+  },
+  bottom: {
+    position: "absolute",
+    left: 14,
+    right: 14,
+    bottom: 125,
+    zIndex: 6,
+  },
+  xpCard: {
+    paddingHorizontal: 17,
+    paddingVertical: 13,
+    borderRadius: 24,
+    backgroundColor: "rgba(2, 24, 22, 0.94)",
+    borderWidth: 1,
+    borderColor: "rgba(190, 240, 108, 0.16)",
+    shadowColor: "#000",
+    shadowOpacity: 0.34,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  xpHead: {
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  xpEyebrow: {
+    color: "#b8f55b",
+    fontSize: 8,
     fontWeight: "900",
-    textAlign: "center",
-    textShadowColor: "rgba(0,0,0,0.35)",
-    textShadowRadius: 8,
+    letterSpacing: 1.8,
   },
-  firstStepSubtitle: {
+  xpTitle: {
     marginTop: 4,
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 17,
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  xpNext: {
+    color: "rgba(255,255,255,0.48)",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  primaryButton: {
+    minHeight: 74,
+    marginTop: 10,
+    paddingHorizontal: 11,
+    borderRadius: 26,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(42, 108, 38, 0.97)",
+    borderWidth: 1,
+    borderColor: "rgba(205,255,112,0.55)",
+    shadowColor: "#76c83c",
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  buttonIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#b8f55b",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.42)",
+  },
+  buttonCopy: {
+    flex: 1,
+    marginLeft: 13,
+  },
+  buttonTitle: {
+    color: "#fff",
+    fontSize: 19,
+    fontWeight: "900",
+  },
+  buttonSubtitle: {
+    marginTop: 3,
+    color: "rgba(255,255,255,0.58)",
+    fontSize: 10,
     fontWeight: "700",
   },
-  statsPanel: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 82,
-    height: 126,
-    flexDirection: "row",
-    backgroundColor: "rgba(2, 15, 18, 0.82)",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.06)",
+  buttonArrow: {
+    width: 42,
+    height: 42,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(184, 238, 89, 0.12)",
   },
-  statItem: {
+  infoBlock: {
+    minHeight: 80,
+    marginTop: 10,
+    paddingHorizontal: 7,
+    borderRadius: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(2, 20, 20, 0.94)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  infoStat: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    borderRightWidth: 1,
-    borderRightColor: "rgba(255,255,255,0.07)",
   },
-  statIcon: {
-    fontSize: 39,
-    marginBottom: 4,
+  infoIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(169, 236, 86, 0.09)",
   },
-  statValue: {
+  infoValue: {
+    marginTop: 3,
     color: "#fff",
-    fontSize: 28,
+    fontSize: 16,
     fontWeight: "900",
   },
-  statLabel: {
-    marginTop: 5,
-    color: "rgba(255,255,255,0.72)",
-    fontSize: 14,
+  infoLabel: {
+    marginTop: 1,
+    color: "rgba(255,255,255,0.42)",
+    fontSize: 8,
     fontWeight: "800",
+  },
+  infoDivider: {
+    width: 1,
+    height: 44,
+    backgroundColor: "rgba(255,255,255,0.07)",
   },
 });

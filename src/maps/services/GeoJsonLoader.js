@@ -3,7 +3,7 @@ export class GeoJsonLoader {
     switch (cityName) {
       case "Yerevan":
       case "Ереван":
-        return require("../../data/yerevanBoundary");
+        return require("../data/cities/yerevanBoundary");
 
       default:
         return null;

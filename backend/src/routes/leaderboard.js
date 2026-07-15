@@ -13,6 +13,7 @@ leaderboardRouter.get("/", async (req, res) => {
     items: users.map((user) => ({
       ...normalizeUser(user),
       country: user.countries?.[user.countries.length - 1] || "Мир",
+      city: user.cities?.[user.cities.length - 1] || "",
     })),
   });
 });

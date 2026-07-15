@@ -64,7 +64,7 @@ authRouter.post("/email/verify", async (req, res) => {
   const user = await findOrCreateUser({ email, provider: "email" });
   const token = signUserToken(user);
 
-  return res.json({ token, user: normalizeUser(user) });
+  return res.json({ token, user: normalizeUser(user, { includePrivate: true }) });
 });
 
 authRouter.post("/provider", async (req, res) => {
@@ -74,5 +74,5 @@ authRouter.post("/provider", async (req, res) => {
   const user = await findOrCreateUser({ email, nickname, provider });
   const token = signUserToken(user);
 
-  return res.json({ token, user: normalizeUser(user) });
+  return res.json({ token, user: normalizeUser(user, { includePrivate: true }) });
 });

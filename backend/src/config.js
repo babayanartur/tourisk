@@ -2,6 +2,10 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+function normalizeUrl(value) {
+  return String(value || "").trim().replace(/\/$/, "");
+}
+
 export const config = {
   port: Number(process.env.PORT || 8000),
   mongoUri: process.env.MONGO_URI || "mongodb://127.0.0.1:27017/tourisk",
@@ -10,6 +14,7 @@ export const config = {
   adminLogin: process.env.ADMIN_LOGIN || "admin",
   adminPassword: process.env.ADMIN_PASSWORD || "tourisk1111",
   adminKey: process.env.ADMIN_KEY || "tourisk-admin-1111",
-  appUrl: process.env.APP_URL || "http://localhost:19006",
+  appUrl: normalizeUrl(process.env.APP_URL || "http://localhost:8081"),
+  publicUrl: normalizeUrl(process.env.PUBLIC_URL || ""),
   nodeEnv: process.env.NODE_ENV || "development",
 };

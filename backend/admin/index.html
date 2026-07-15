@@ -3,157 +3,279 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#061411" />
     <title>Tourisk Admin</title>
     <link rel="stylesheet" href="/admin/styles.css" />
   </head>
   <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
     <section id="loginView" class="login-view">
-      <div class="login-card">
-        <div class="brand center">
-          <div class="orb">♟</div>
-          <div>
-            <h1>TOURISK</h1>
-            <p>Admin Console</p>
+      <div class="login-shell">
+        <div class="login-story">
+          <div class="brand brand-large">
+            <div class="orb"><span>♟</span></div>
+            <div>
+              <h1>TOURISK</h1>
+              <p>Control Center</p>
+            </div>
           </div>
+          <div class="story-copy">
+            <span class="eyebrow">ADMIN CONSOLE</span>
+            <h2>Управляй миром, который пользователи открывают ногами.</h2>
+            <p>Статистика, контент, фигурки, достижения и пользователи в одном интерфейсе.</p>
+          </div>
+          <div class="story-grid">
+            <div><b>01</b><span>Живая статистика</span></div>
+            <div><b>02</b><span>Контент карты</span></div>
+            <div><b>03</b><span>Контроль игроков</span></div>
+          </div>
+          <div class="story-path"><span></span><span></span><span></span><span></span><span></span></div>
         </div>
-        <h2>Вход в админку</h2>
-        <p class="muted">Логин и пароль. Никаких ключей в поле ввода, цивилизация всё-таки пытается взрослеть.</p>
-        <form id="loginForm">
-          <label>Логин</label>
-          <input id="adminLogin" class="input" autocomplete="username" value="admin" />
-          <label>Пароль</label>
-          <input id="adminPassword" class="input" type="password" autocomplete="current-password" value="tourisk1111" />
-          <button class="primary full" type="submit">Войти</button>
-        </form>
+
+        <div class="login-card">
+          <div class="login-card-head">
+            <span class="status-dot"></span>
+            <span>Защищённый вход</span>
+          </div>
+          <h2>Добро пожаловать</h2>
+          <p class="muted">Введите логин и пароль администратора Tourisk.</p>
+          <form id="loginForm" class="login-form">
+            <label for="adminLogin">Логин</label>
+            <div class="input-shell">
+              <span class="field-icon">◎</span>
+              <input id="adminLogin" class="input naked" autocomplete="username" value="admin" />
+            </div>
+            <label for="adminPassword">Пароль</label>
+            <div class="input-shell">
+              <span class="field-icon">◆</span>
+              <input id="adminPassword" class="input naked" type="password" autocomplete="current-password" value="tourisk1111" />
+            </div>
+            <button class="primary full login-submit" type="submit">
+              <span>Войти в консоль</span><span>→</span>
+            </button>
+          </form>
+          <p class="login-footnote">Tourisk MVP · доступ только для администраторов</p>
+        </div>
       </div>
     </section>
 
     <div id="appView" class="shell hidden">
       <aside class="sidebar">
-        <div class="brand">
-          <div class="orb">♟</div>
-          <div>
-            <h1>TOURISK</h1>
-            <p>MVP Stage 2</p>
+        <div class="sidebar-head">
+          <div class="brand">
+            <div class="orb small"><span>♟</span></div>
+            <div>
+              <h1>TOURISK</h1>
+              <p>Admin Console</p>
+            </div>
           </div>
+          <div class="environment"><span></span>MVP Stage 2</div>
         </div>
-        <button class="nav active" data-tab="dashboard">Обзор</button>
-        <button class="nav" data-tab="statistics">Статистика</button>
-        <button class="nav" data-tab="achievements">Ачивки</button>
-        <button class="nav" data-tab="pawns">Пешки</button>
-        <button class="nav" data-tab="places">Места</button>
-        <button class="nav" data-tab="users">Пользователи</button>
-        <button class="nav" data-tab="config">Настройки</button>
-        <button id="logoutBtn" class="nav danger-nav">Выйти</button>
+
+        <nav class="nav-list">
+          <p class="nav-caption">ОСНОВНОЕ</p>
+          <button class="nav active" data-tab="dashboard"><span class="nav-icon">◫</span><span>Обзор</span></button>
+          <button class="nav" data-tab="statistics"><span class="nav-icon">↗</span><span>Статистика</span></button>
+          <p class="nav-caption">КОНТЕНТ</p>
+          <button class="nav" data-tab="achievements"><span class="nav-icon">★</span><span>Достижения</span></button>
+          <button class="nav" data-tab="pawns"><span class="nav-icon">♟</span><span>Фигурки</span></button>
+          <button class="nav" data-tab="places"><span class="nav-icon">⌖</span><span>Места</span></button>
+          <p class="nav-caption">СИСТЕМА</p>
+          <button class="nav" data-tab="users"><span class="nav-icon">◎</span><span>Пользователи</span></button>
+          <button class="nav" data-tab="config"><span class="nav-icon">⚙</span><span>Настройки</span></button>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <div class="server-card">
+            <div class="server-card-top"><span class="status-dot"></span><b>Сервер онлайн</b></div>
+            <small id="serverTime">Проверяем соединение…</small>
+          </div>
+          <button id="logoutBtn" class="nav danger-nav"><span class="nav-icon">↪</span><span>Выйти</span></button>
+        </div>
       </aside>
 
       <main class="main">
         <header class="topbar">
-          <div>
+          <div class="topbar-copy">
+            <span id="pageEyebrow" class="eyebrow">ПАНЕЛЬ УПРАВЛЕНИЯ</span>
             <h2 id="pageTitle">Обзор приложения</h2>
-            <p id="pageSubtitle">Живые показатели, контент, пешки, ачивки, юзеры.</p>
+            <p id="pageSubtitle">Живые показатели Tourisk и состояние контента.</p>
           </div>
-          <button id="refreshBtn" class="primary">Обновить</button>
+          <div class="topbar-actions">
+            <div class="last-sync"><span>Последнее обновление</span><b id="lastSync">—</b></div>
+            <button id="refreshBtn" class="primary"><span>↻</span> Обновить</button>
+          </div>
         </header>
 
         <section id="dashboard" class="page active">
           <div id="summary" class="cards"></div>
+
+          <div class="grid-dashboard mt">
+            <div class="panel chart-panel">
+              <div class="panel-head">
+                <div><span class="panel-kicker">7 ДНЕЙ</span><h3>Динамика пользователей</h3></div>
+                <div class="legend"><span class="legend-active"></span>Активны <span class="legend-new"></span>Новые</div>
+              </div>
+              <div id="activityChart" class="activity-chart"></div>
+            </div>
+
+            <div class="panel health-panel">
+              <div class="panel-head">
+                <div><span class="panel-kicker">СИСТЕМА</span><h3>Состояние проекта</h3></div>
+                <span class="health-badge"><i></i>Работает</span>
+              </div>
+              <div id="healthMetrics" class="health-grid"></div>
+              <div class="country-block">
+                <div class="mini-title"><span>Активные страны</span><b id="countriesTotal">0</b></div>
+                <div id="topCountries" class="country-bars"></div>
+              </div>
+            </div>
+          </div>
+
           <div class="grid-2 mt">
-            <div class="panel"><h3>Топ игроков</h3><div id="topPlayers" class="list compact"></div></div>
-            <div class="panel"><h3>Последние регистрации</h3><div id="recentUsers" class="list compact"></div></div>
+            <div class="panel">
+              <div class="panel-head"><div><span class="panel-kicker">ЛИДЕРЫ</span><h3>Топ игроков</h3></div><span class="panel-link" data-go-tab="users">Все пользователи →</span></div>
+              <div id="topPlayers" class="list compact"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><div><span class="panel-kicker">НОВЫЕ</span><h3>Последние регистрации</h3></div></div>
+              <div id="recentUsers" class="list compact"></div>
+            </div>
           </div>
         </section>
 
         <section id="statistics" class="page">
           <div id="statisticsCards" class="cards"></div>
-          <div class="panel mt"><h3>Что смотреть на MVP</h3><p class="muted big">Активные сегодня, открытые клетки, check-in, рост XP. Если тут нули, приложение либо новое, либо пользователи решили жить без приключений, трагедия небольшого масштаба.</p></div>
+          <div class="grid-2 mt">
+            <div class="panel chart-panel">
+              <div class="panel-head"><div><span class="panel-kicker">АКТИВНОСТЬ</span><h3>Пользователи за неделю</h3></div></div>
+              <div id="statisticsActivityChart" class="activity-chart tall"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><div><span class="panel-kicker">ГЕОГРАФИЯ</span><h3>Страны исследователей</h3></div></div>
+              <div id="statisticsCountries" class="country-bars large"></div>
+            </div>
+          </div>
+          <div class="insight-panel mt">
+            <div class="insight-icon">✦</div>
+            <div><b>Главная метрика MVP</b><p>Следите за активными пользователями, check-in и ростом открытых территорий. Красивые цифры без реальной активности обычно лишь дорогой декор.</p></div>
+          </div>
         </section>
 
         <section id="achievements" class="page">
           <div class="editor-grid">
-            <form id="achievementForm" class="panel">
-              <h3>Новая ачивка</h3>
-              <input name="id" class="input" placeholder="first_step" required />
-              <input name="title" class="input" placeholder="Первый шаг" required />
-              <textarea name="description" class="input" placeholder="Описание"></textarea>
-              <input name="icon" class="input" placeholder="🧭" />
-              <label>Картинка бейджа</label>
-              <input name="file" class="input file" type="file" accept="image/*" />
-              <select name="conditionType" class="input">
-                <option value="cells">territories / cells</option>
-                <option value="cities">cities</option>
-                <option value="countries">countries</option>
-                <option value="level">level</option>
-                <option value="xp">xp</option>
-              </select>
-              <input name="conditionValue" class="input" type="number" value="1" />
-              <input name="rewardXp" class="input" type="number" value="20" />
-              <button class="primary full" type="submit">Создать</button>
+            <form id="achievementForm" class="panel editor-panel">
+              <div class="panel-head"><div><span id="achievementFormKicker" class="panel-kicker">СОЗДАНИЕ</span><h3 id="achievementFormTitle">Новое достижение</h3></div><span class="form-badge">Achievement</span></div>
+              <div class="field-grid two">
+                <div><label>ID достижения</label><input name="id" class="input" placeholder="first_step" required /></div>
+                <div><label>Иконка</label><input name="icon" class="input" placeholder="🧭" /></div>
+              </div>
+              <label>Название</label><input name="title" class="input" placeholder="Первый шаг" required />
+              <label>Описание</label><textarea name="description" class="input" placeholder="Что должен сделать пользователь"></textarea>
+              <label>Изображение бейджа</label>
+              <div class="upload-zone"><input name="file" class="file-input" type="file" accept="image/png,image/jpeg,image/webp" data-preview-target="achievementPreview" /><div id="achievementPreview" class="upload-preview"><span>＋</span><b>Выберите изображение</b><small>PNG, JPG или WEBP до 12 МБ</small></div></div>
+              <div class="field-grid three">
+                <div><label>Условие</label><select name="conditionType" class="input"><option value="cells">Территории</option><option value="cities">Города</option><option value="countries">Страны</option><option value="level">Уровень</option><option value="xp">XP</option><option value="distanceKm">Пройдено, км</option><option value="exploredKm2">Исследовано, км²</option><option value="legendaryPlaces">Легендарные места</option><option value="hiddenPlaces">Скрытые места</option><option value="yerevanPlaces">Места Еревана</option><option value="yerevanPercent">Процент Еревана</option><option value="stars">Звёзды</option><option value="streakDays">Серия дней</option><option value="achievements">Достижения</option></select></div>
+                <div><label>Значение</label><input name="conditionValue" class="input" type="number" value="1" /></div>
+                <div><label>Награда XP</label><input name="rewardXp" class="input" type="number" value="20" /></div>
+              </div>
+              <label>Порядок в списке</label><input name="sortOrder" class="input" type="number" value="0" />
+              <div class="form-actions"><button id="achievementSubmit" class="primary full" type="submit">Создать достижение</button><button id="achievementCancel" class="ghost full hidden" type="button" data-cancel-edit="achievements">Отменить редактирование</button></div>
             </form>
-            <div class="panel"><h3>Список</h3><div id="achievementsList" class="list"></div></div>
+            <div class="panel list-panel"><div class="panel-head"><div><span class="panel-kicker">КОНТЕНТ</span><h3>Список достижений</h3></div><span id="achievementsCount" class="count-badge">0</span></div><div id="achievementsList" class="list"></div></div>
           </div>
         </section>
 
         <section id="pawns" class="page">
           <div class="editor-grid">
-            <form id="pawnForm" class="panel">
-              <h3>Новая пешка</h3>
-              <input name="id" class="input" placeholder="pawn_green" required />
-              <input name="name" class="input" placeholder="Зелёная фигурка" required />
+            <form id="pawnForm" class="panel editor-panel">
+              <div class="panel-head"><div><span id="pawnFormKicker" class="panel-kicker">СОЗДАНИЕ</span><h3 id="pawnFormTitle">Новая фигурка</h3></div><span class="form-badge">Pawn</span></div>
+              <div class="field-grid two">
+                <div><label>ID фигурки</label><input name="id" class="input" placeholder="pawn_green" required /></div>
+                <div><label>Название</label><input name="name" class="input" placeholder="Зелёная фигурка" required /></div>
+              </div>
               <label>Изображение фигурки</label>
-              <input name="file" class="input file" type="file" accept="image/*" />
-              <select name="unlockType" class="input">
-                <option value="level">level</option>
-                <option value="cells">cells</option>
-                <option value="cities">cities</option>
-                <option value="countries">countries</option>
-                <option value="xp">xp</option>
-              </select>
-              <input name="unlockValue" class="input" type="number" value="1" />
-              <input name="condition" class="input" placeholder="Доступна сразу" />
-              <button class="primary full" type="submit">Создать</button>
+              <div class="upload-zone"><input name="file" class="file-input" type="file" accept="image/png,image/jpeg,image/webp" data-preview-target="pawnPreview" /><div id="pawnPreview" class="upload-preview pawn-preview"><span>♟</span><b>Загрузите фигурку</b><small>Прозрачный PNG даст лучший результат</small></div></div>
+              <label>Описание</label><textarea name="description" class="input" placeholder="Короткая история или особенность фигурки"></textarea>
+              <div class="field-grid three">
+                <div><label>Редкость</label><select name="rarity" class="input"><option value="common">Обычная</option><option value="uncommon">Необычная</option><option value="rare">Редкая</option><option value="epic">Эпическая</option><option value="legendary">Легендарная</option><option value="mythic">Мифическая</option><option value="shadow">Теневая</option></select></div>
+                <div><label>Тип открытия</label><select name="unlockType" class="input"><option value="cells">Территории</option><option value="cities">Города</option><option value="countries">Страны</option><option value="level">Уровень</option><option value="xp">XP</option><option value="distanceKm">Пройдено, км</option><option value="exploredKm2">Исследовано, км²</option><option value="legendaryPlaces">Легендарные места</option><option value="hiddenPlaces">Скрытые места</option><option value="yerevanPlaces">Места Еревана</option><option value="yerevanPercent">Процент Еревана</option><option value="stars">Звёзды</option><option value="streakDays">Серия дней</option><option value="achievements">Достижения</option></select></div>
+                <div><label>Значение</label><input name="unlockValue" class="input" type="number" value="1" min="0" /></div>
+              </div>
+              <div class="field-grid three">
+                <div><label>Цвет свечения</label><input name="glowColor" class="input" type="color" value="#a9ec56" /></div>
+                <div><label>Масштаб на карте</label><input name="mapScale" class="input" type="number" min="0.6" max="1.8" step="0.05" value="1" /></div>
+                <div><label>Порядок</label><input name="sortOrder" class="input" type="number" value="0" /></div>
+              </div>
+              <label>Текст условия</label><input name="condition" class="input" placeholder="Доступна сразу" />
+              <div class="form-actions"><button id="pawnSubmit" class="primary full" type="submit">Создать фигурку</button><button id="pawnCancel" class="ghost full hidden" type="button" data-cancel-edit="pawns">Отменить редактирование</button></div>
             </form>
-            <div class="panel"><h3>Список</h3><div id="pawnsList" class="list"></div></div>
+            <div class="panel list-panel"><div class="panel-head"><div><span class="panel-kicker">КОЛЛЕКЦИЯ</span><h3>Список фигурок</h3></div><span id="pawnsCount" class="count-badge">0</span></div><div id="pawnsList" class="list cards-list"></div></div>
           </div>
         </section>
 
         <section id="places" class="page">
           <div class="editor-grid">
-            <form id="placeForm" class="panel">
-              <h3>Новое место</h3>
-              <input name="id" class="input" placeholder="cascade" required />
-              <input name="name" class="input" placeholder="Каскад" required />
-              <input name="city" class="input" placeholder="Ереван" />
-              <input name="country" class="input" placeholder="Армения" />
-              <input name="latitude" class="input" type="number" step="0.000001" placeholder="40.1919" required />
-              <input name="longitude" class="input" type="number" step="0.000001" placeholder="44.5152" required />
-              <select name="rarity" class="input">
-                <option value="common">common</option>
-                <option value="rare">rare</option>
-                <option value="epic">epic</option>
-                <option value="legendary">legendary</option>
-              </select>
-              <input name="xp" class="input" type="number" value="50" />
-              <button class="primary full" type="submit">Создать</button>
+            <form id="placeForm" class="panel editor-panel">
+              <div class="panel-head"><div><span id="placeFormKicker" class="panel-kicker">КАРТА</span><h3 id="placeFormTitle">Новое место</h3></div><span class="form-badge">Place</span></div>
+              <div class="field-grid two">
+                <div><label>ID места</label><input name="id" class="input" placeholder="cascade" required /></div>
+                <div><label>Название</label><input name="name" class="input" placeholder="Каскад" required /></div>
+              </div>
+              <label>Текст легендарного открытия</label>
+              <textarea name="description" class="input" rows="5" placeholder="Атмосферный текст, который увидит исследователь после открытия"></textarea>
+              <div class="field-grid two">
+                <div><label>Город</label><input name="city" class="input" placeholder="Ереван" /></div>
+                <div><label>Страна</label><input name="country" class="input" placeholder="Армения" /></div>
+              </div>
+              <div class="field-grid two">
+                <div><label>Символ места</label><input name="icon" class="input" placeholder="🏛" /></div>
+                <div><label>Радиус открытия, м</label><input name="discoveryRadiusMeters" class="input" type="number" min="40" max="1000" value="220" /></div>
+              </div>
+              <div class="field-grid two">
+                <div><label>Широта</label><input name="latitude" class="input" type="number" step="0.000001" placeholder="40.191900" required /></div>
+                <div><label>Долгота</label><input name="longitude" class="input" type="number" step="0.000001" placeholder="44.515200" required /></div>
+              </div>
+              <label>Изображение места</label>
+              <div class="upload-zone"><input name="file" class="file-input" type="file" accept="image/png,image/jpeg,image/webp" data-preview-target="placePreview" /><div id="placePreview" class="upload-preview"><span>⌖</span><b>Загрузите изображение места</b><small>Оно появится в профиле и коллекции открытий</small></div></div>
+              <div class="field-grid three">
+                <div><label>Редкость</label><select name="rarity" class="input"><option value="common">Обычное</option><option value="rare">Редкое</option><option value="epic">Эпическое</option><option value="legendary">Легендарное</option><option value="hidden">Скрытое</option></select></div>
+                <div><label>Награда XP</label><input name="xp" class="input" type="number" value="50" min="0" /></div>
+                <div><label>Порядок</label><input name="sortOrder" class="input" type="number" value="0" /></div>
+              </div>
+              <div class="form-actions"><button id="placeSubmit" class="primary full" type="submit">Добавить место</button><button id="placeCancel" class="ghost full hidden" type="button" data-cancel-edit="places">Отменить редактирование</button></div>
             </form>
-            <div class="panel"><h3>Список</h3><div id="placesList" class="list"></div></div>
+            <div class="panel list-panel"><div class="panel-head"><div><span class="panel-kicker">ТОЧКИ</span><h3>Места на карте</h3></div><span id="placesCount" class="count-badge">0</span></div><div id="placesList" class="list"></div></div>
           </div>
         </section>
 
         <section id="users" class="page">
-          <div class="panel"><h3>Пользователи</h3><div id="usersList" class="list"></div></div>
+          <div class="panel">
+            <div class="panel-head users-head">
+              <div><span class="panel-kicker">АККАУНТЫ</span><h3>Пользователи</h3></div>
+              <div class="users-toolbar"><div class="search-box"><span>⌕</span><input id="usersSearch" placeholder="Никнейм или почта" /></div><span id="usersCount" class="count-badge">0</span></div>
+            </div>
+            <div id="usersList" class="list user-list"></div>
+          </div>
         </section>
 
         <section id="config" class="page">
-          <form id="configForm" class="panel wide">
-            <h3>Публичные настройки приложения</h3>
-            <textarea id="configJson" class="input code" spellcheck="false"></textarea>
-            <button class="primary" type="submit">Сохранить JSON</button>
-          </form>
+          <div class="config-layout">
+            <form id="configForm" class="panel wide">
+              <div class="panel-head"><div><span class="panel-kicker">PUBLIC CONFIG</span><h3>Настройки приложения</h3></div><span class="form-badge">JSON</span></div>
+              <p class="muted config-help">Публичный конфиг получает мобильное приложение. Перед сохранением JSON автоматически проверяется.</p>
+              <textarea id="configJson" class="input code" spellcheck="false"></textarea>
+              <button class="primary" type="submit">Сохранить конфигурацию</button>
+            </form>
+            <aside class="panel config-guide"><span class="panel-kicker">ПОДСКАЗКА</span><h3>Что можно хранить</h3><ul><li>Тексты и feature flags</li><li>Параметры карты и наград</li><li>Ссылки на документы</li><li>Настройки MVP</li></ul><div class="warning-box">Не храните в публичном JSON пароли, токены и секретные ключи.</div></aside>
+          </div>
         </section>
       </main>
     </div>
 
+    <div id="loadingOverlay" class="loading-overlay hidden"><div class="loader-orb">♟</div><span>Загрузка данных…</span></div>
     <script src="/admin/app.js"></script>
   </body>
 </html>
