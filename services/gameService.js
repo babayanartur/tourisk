@@ -235,6 +235,16 @@ export const DEFAULT_PAWNS = [
     glowColor: "#78ffd4",
     mapScale: 1.05,
   },
+  {
+  id: "levon-cave",
+  name: "Пещера Левона",
+  city: "Ариндж",
+  country: "Армения",
+  latitude: 40.2594,
+  longitude: 44.6337,
+  rarity: "hidden",
+  xp: 120,
+},
 ];
 
 export const DEFAULT_PLACES = legendaryPlaces.map((place) => ({ ...place }));

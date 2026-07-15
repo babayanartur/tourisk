@@ -76,6 +76,7 @@ export default function MapScreen() {
   const locatePulse = useRef(new Animated.Value(0)).current;
 
   const [location, setLocation] = useState(null);
+  
   const [region, setRegion] = useState(DEFAULT_REGION);
   const [visitedCells, setVisitedCells] = useState([]);
   const [currentCellId, setCurrentCellId] = useState(null);
@@ -605,7 +606,14 @@ export default function MapScreen() {
           </Animated.View>
         </Marker>
       </MapView>
-
+<TouriskDiscoveryCard
+  visible={showDiscoveryCard}
+  discovery={currentDiscovery}
+  onHide={() => {
+    setShowDiscoveryCard(false);
+    setCurrentDiscovery(null);
+  }}
+/>
       <View pointerEvents="none" style={styles.fantasyTint} />
       <Animated.Image
         source={cloudRingA}
