@@ -606,14 +606,14 @@ export default function MapScreen() {
           </Animated.View>
         </Marker>
       </MapView>
-<TouriskDiscoveryCard
+{/* <TouriskDiscoveryCard
   visible={showDiscoveryCard}
   discovery={currentDiscovery}
   onHide={() => {
     setShowDiscoveryCard(false);
     setCurrentDiscovery(null);
   }}
-/>
+/> */}
       <View pointerEvents="none" style={styles.fantasyTint} />
       <Animated.Image
         source={cloudRingA}
