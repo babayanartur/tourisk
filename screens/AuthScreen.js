@@ -19,7 +19,7 @@ import { loginWithProvider, requestEmailCode, verifyEmailCode } from "../service
 import LegalDocumentScreen from "./LegalDocumentScreen";
 import LivingWorld from "../components/LivingWorld";
 
-const authBg = require("../assets/backgrounds/auth-world.jpg");
+const authBg = require("../assets/backgrounds/home-world-feedback.jpg");
 
 export default function AuthScreen({ onAuth }) {
   const insets = useSafeAreaInsets();

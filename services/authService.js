@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiRequest, clearSession, setAuthToken } from "./apiClient";
 import { STORAGE_KEYS } from "./storageKeys";
+import { LevelEngine } from "../src/maps/services/LevelEngine";
 
 function normalizeUser(user) {
   const safeUser = user || {};
@@ -11,7 +12,7 @@ function normalizeUser(user) {
     nickname: safeUser.nickname || safeUser.name || "Explorer",
     xp: Number(safeUser.xp || 0),
     coins: Number(safeUser.coins || 0),
-    level: Number(safeUser.level || 1),
+    level: LevelEngine.getLevel(Number(safeUser.xp || 0)),
     countriesCount: Number(safeUser.countriesCount ?? (Array.isArray(safeUser.countries) ? safeUser.countries.length : safeUser.countries) ?? 0),
     citiesCount: Number(safeUser.citiesCount ?? (Array.isArray(safeUser.cities) ? safeUser.cities.length : safeUser.cities) ?? 0),
     exploredKm2: Number(safeUser.exploredKm2 ?? (Number(safeUser.territories || 0) * 0.01)),
@@ -27,26 +28,70 @@ function normalizeUser(user) {
     streakDays: Number(safeUser.streakDays || 1),
     lastActiveDate: safeUser.lastActiveDate || null,
     selectedPawn: safeUser.selectedPawn || "pawn_green",
+    lastLocation: safeUser.lastLocation || null,
+    transportMode: safeUser.transportMode || "stationary",
     createdAt: safeUser.createdAt || new Date().toISOString(),
   };
 }
 
+
+function getLocationTimestamp(location) {
+  if (!location) return 0;
+  const direct = Number(location.timestamp);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const parsed = new Date(location.updatedAt || 0).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function newestLocation(...candidates) {
+  return candidates
+    .filter((item) => item?.latitude != null && item?.longitude != null)
+    .sort((a, b) => getLocationTimestamp(b) - getLocationTimestamp(a))[0] || null;
+}
+
 export async function saveUser(user) {
-  const normalized = normalizeUser(user);
+  const [existingUserRaw, existingCellsRaw, existingOpenedRaw, lastKnownLocationRaw] = await Promise.all([
+    AsyncStorage.getItem(STORAGE_KEYS.user),
+    AsyncStorage.getItem(STORAGE_KEYS.visitedCells),
+    AsyncStorage.getItem(STORAGE_KEYS.openedLegendaryPlaces),
+    AsyncStorage.getItem(STORAGE_KEYS.lastKnownLocation),
+  ]);
+  const existingUser = existingUserRaw ? safeParse(existingUserRaw, {}) : {};
+  const incoming = normalizeUser(user);
+  const mergedLastLocation = newestLocation(
+    safeParse(lastKnownLocationRaw, null),
+    existingUser.lastLocation,
+    incoming.lastLocation
+  );
+  const mergedCells = Array.from(new Set([
+    ...safeParse(existingCellsRaw, []),
+    ...(Array.isArray(existingUser.visitedCells) ? existingUser.visitedCells : []),
+    ...(Array.isArray(incoming.visitedCells) ? incoming.visitedCells : []),
+  ]));
+  const mergedOpened = Array.from(new Set([
+    ...safeParse(existingOpenedRaw, []),
+    ...(Array.isArray(existingUser.openedPlaces) ? existingUser.openedPlaces : []),
+    ...(Array.isArray(incoming.openedPlaces) ? incoming.openedPlaces : []),
+  ]));
+  const normalized = normalizeUser({
+    ...existingUser,
+    ...incoming,
+    xp: Math.max(Number(existingUser.xp || 0), Number(incoming.xp || 0)),
+    visitedCells: mergedCells,
+    openedPlaces: mergedOpened,
+    territories: Math.max(mergedCells.length, Number(incoming.territories || 0)),
+    lastLocation: mergedLastLocation,
+    transportMode: mergedLastLocation?.transportMode || incoming.transportMode || existingUser.transportMode || "stationary",
+  });
   const writes = [[STORAGE_KEYS.user, JSON.stringify(normalized)]];
 
-  if (Array.isArray(normalized.visitedCells)) {
-    writes.push([STORAGE_KEYS.visitedCells, JSON.stringify(normalized.visitedCells)]);
-  }
-  if (Array.isArray(normalized.openedPlaces)) {
-    writes.push([STORAGE_KEYS.openedLegendaryPlaces, JSON.stringify(normalized.openedPlaces)]);
-  }
+  writes.push([STORAGE_KEYS.visitedCells, JSON.stringify(mergedCells)]);
+  writes.push([STORAGE_KEYS.openedLegendaryPlaces, JSON.stringify(mergedOpened)]);
   if (Number.isFinite(normalized.distanceKm)) {
-    writes.push([STORAGE_KEYS.totalDistanceMeters, String(Math.max(0, normalized.distanceKm * 1000))]);
+    const localDistance = Number(await AsyncStorage.getItem(STORAGE_KEYS.totalDistanceMeters) || 0);
+    writes.push([STORAGE_KEYS.totalDistanceMeters, String(Math.max(localDistance, normalized.distanceKm * 1000))]);
   }
-  if (normalized.streakDays) {
-    writes.push([STORAGE_KEYS.streakDays, String(normalized.streakDays)]);
-  }
+  if (normalized.streakDays) writes.push([STORAGE_KEYS.streakDays, String(normalized.streakDays)]);
   if (normalized.lastActiveDate) {
     const date = new Date(normalized.lastActiveDate);
     if (!Number.isNaN(date.getTime())) {
@@ -54,9 +99,24 @@ export async function saveUser(user) {
       writes.push([STORAGE_KEYS.lastActiveDate, key]);
     }
   }
+  if (normalized.lastLocation?.latitude != null && normalized.lastLocation?.longitude != null) {
+    writes.push([STORAGE_KEYS.lastKnownLocation, JSON.stringify({
+      ...normalized.lastLocation,
+      timestamp: getLocationTimestamp(normalized.lastLocation) || Date.now(),
+    })]);
+  }
 
   await AsyncStorage.multiSet(writes);
   return normalized;
+}
+
+function safeParse(value, fallback) {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
 }
 
 export async function getStoredUser() {
@@ -69,6 +129,13 @@ export async function getStoredUser() {
     await AsyncStorage.removeItem(STORAGE_KEYS.user);
     return null;
   }
+}
+
+
+export async function syncCurrentUser() {
+  const result = await apiRequest("/api/me");
+  if (!result?.user) return getStoredUser();
+  return saveUser(result.user);
 }
 
 export async function requestEmailCode(email) {

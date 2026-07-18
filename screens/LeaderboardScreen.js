@@ -18,7 +18,7 @@ import { getPlayerStats } from "../services/playerStats";
 import { getStoredUser } from "../services/authService";
 import { getLocalPawnFallback, getPawnSource, getSelectedPawn } from "../services/assetResolver";
 
-const leaderboardBg = require("../assets/backgrounds/leaderboard-world.jpg");
+const leaderboardBg = require("../assets/backgrounds/home-world-feedback.jpg");
 
 const FILTERS = [
   { key: "global", label: "Общий", icon: "globe-outline" },
@@ -38,26 +38,35 @@ export default function LeaderboardScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    try {
-      const [leaderboardItems, playerStats, content, storedUser] = await Promise.all([
-        getLeaderboard(),
-        getPlayerStats(),
-        getGameContent(),
-        getStoredUser(),
-      ]);
-      setItems(Array.isArray(leaderboardItems) ? leaderboardItems : []);
-      setStats(playerStats);
-      setPawns(content.pawns?.length ? content.pawns : DEFAULT_PAWNS);
-      setCurrentUser(storedUser);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    const [playerStats, content, storedUser] = await Promise.all([
+      getPlayerStats(),
+      getGameContent(),
+      getStoredUser(),
+    ]);
+    setStats(playerStats);
+    setPawns(content.pawns?.length ? content.pawns : DEFAULT_PAWNS);
+    setCurrentUser(storedUser);
+    setLoading(false);
+
+    getLeaderboard()
+      .then((leaderboardItems) => setItems(Array.isArray(leaderboardItems) ? leaderboardItems : []))
+      .catch(() => {});
   };
 
   useEffect(() => {
     load();
     const unsubscribe = navigation.addListener("focus", load);
-    return () => unsubscribe?.();
+    const liveTimer = setInterval(() => {
+      getLeaderboard()
+        .then((leaderboardItems) => setItems(Array.isArray(leaderboardItems) ? leaderboardItems : []))
+        .catch(() => {});
+      getPlayerStats().then(setStats).catch(() => {});
+    }, 5000);
+    return () => {
+      unsubscribe?.();
+      clearInterval(liveTimer);
+    };
   }, [navigation]);
 
   const realUsers = useMemo(

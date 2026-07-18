@@ -1,0 +1,14 @@
+Tourisk Mobile 1.6.0 validation
+
+- node --check components/FogOverlay.js: PASS
+- node --check components/MapFogClouds.js: PASS
+- node --check src/maps/services/FogEngine.js: PASS
+- node --check screens/MapScreen.js: PASS
+- expo export --platform ios: PASS
+- expo export --platform android: PASS
+
+Cloud safety limits:
+- Android: 30 target cloud markers, no more than 38 in extreme aspect ratios.
+- iOS: 38 target cloud markers, no more than 46 in extreme aspect ratios.
+- Fog polygon openings: 48 Android / 64 iOS.
+- Cloud textures: 320x200 RGBA.

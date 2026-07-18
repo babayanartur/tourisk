@@ -8,6 +8,9 @@ const LocationPointSchema = new mongoose.Schema(
     city: { type: String, default: "" },
     country: { type: String, default: "" },
     source: { type: String, default: "gps" },
+    accuracy: { type: Number, default: null },
+    speed: { type: Number, default: 0 },
+    transportMode: { type: String, enum: ["stationary", "walking", "bicycle", "driving"], default: "stationary" },
     createdAt: { type: Date, default: Date.now },
   },
   { _id: false }
@@ -25,6 +28,12 @@ const UserSchema = new mongoose.Schema(
     distanceMeters: { type: Number, default: 0 },
     streakDays: { type: Number, default: 1 },
     lastActiveDate: { type: Date, default: null },
+    transportMode: { type: String, enum: ["stationary", "walking", "bicycle", "driving"], default: "stationary" },
+    lastExplorationRewardAt: { type: Date, default: null },
+    lastExplorationRewardLocation: {
+      latitude: { type: Number, default: null },
+      longitude: { type: Number, default: null },
+    },
     openedPlaces: { type: [String], default: [] },
     level: { type: Number, default: 1 },
     visitedCells: { type: [String], default: [] },
@@ -34,6 +43,9 @@ const UserSchema = new mongoose.Schema(
     lastLocation: {
       latitude: { type: Number, default: null },
       longitude: { type: Number, default: null },
+      accuracy: { type: Number, default: null },
+      speed: { type: Number, default: 0 },
+      transportMode: { type: String, enum: ["stationary", "walking", "bicycle", "driving"], default: "stationary" },
       updatedAt: { type: Date, default: null },
     },
     recentTrail: { type: [LocationPointSchema], default: [] },

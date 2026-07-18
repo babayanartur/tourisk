@@ -1,6 +1,19 @@
 import { Image } from "react-native";
 import { API_BASE_URL } from "./apiClient";
 
+const LOCAL_PAWNS = {
+  pawn_green: require("../assets/pawns/pawn_green_v13.png"),
+  pawn_bronze: require("../assets/pawns/pawn_bronze_v13.png"),
+  pawn_silver: require("../assets/pawns/pawn_silver_v13.png"),
+  pawn_gold: require("../assets/pawns/pawn_gold_v13.png"),
+  pawn_azure: require("../assets/pawns/pawn_azure_v13.png"),
+  pawn_violet: require("../assets/pawns/pawn_violet_v13.png"),
+  pawn_ember: require("../assets/pawns/pawn_ember_v13.png"),
+  pawn_crystal: require("../assets/pawns/pawn_crystal_v13.png"),
+  pawn_shadow: require("../assets/pawns/pawn_shadow_v13.png"),
+  pawn_aurora: require("../assets/pawns/pawn_aurora_v13.png"),
+};
+
 export function resolveAssetUrl(rawValue) {
   const raw = String(rawValue || "").trim();
   if (!raw) return "";
@@ -9,21 +22,21 @@ export function resolveAssetUrl(rawValue) {
   return `${API_BASE_URL}/${raw}`;
 }
 
-// Оставлено для совместимости существующих экранов. Локальных изображений
-// фигурок в mobile больше нет: весь контент приходит с backend.
-export function getLocalPawnFallback() {
-  return null;
+export function getLocalPawnFallback(pawn) {
+  const id = typeof pawn === "string" ? pawn : pawn?.id;
+  return LOCAL_PAWNS[id] || LOCAL_PAWNS.pawn_green;
 }
 
 export function getPawnSource(pawn) {
-  if (!pawn || typeof pawn === "string") return null;
+  if (!pawn) return LOCAL_PAWNS.pawn_green;
   if (typeof pawn === "number") return pawn;
+  if (typeof pawn === "string") return LOCAL_PAWNS[pawn] || LOCAL_PAWNS.pawn_green;
 
   const raw = pawn.imageUrl || pawn.imagePath || pawn.image || "";
   if (typeof raw === "number") return raw;
 
   const remote = resolveAssetUrl(raw);
-  return remote ? { uri: remote } : null;
+  return remote ? { uri: remote } : getLocalPawnFallback(pawn);
 }
 
 export function getContentImageSource(item) {

@@ -3,7 +3,7 @@ import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View }
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const background = require("../assets/backgrounds/profile-world.jpg");
+const background = require("../assets/backgrounds/home-world-feedback.jpg");
 
 const DOCUMENTS = {
   privacy: {

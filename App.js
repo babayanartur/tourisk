@@ -15,7 +15,8 @@ import IntroScreen from "./screens/IntroScreen";
 import LeaderboardScreen from "./screens/LeaderboardScreen";
 import MapScreen from "./screens/MapScreen";
 import ProfileScreen from "./screens/ProfileScreen";
-import { getStoredUser, logout } from "./services/authService";
+import { getStoredUser, logout, syncCurrentUser } from "./services/authService";
+import { flushPendingDiscoveries } from "./services/gameService";
 import { STORAGE_KEYS } from "./services/storageKeys";
 
 const ROUTES = [
@@ -88,6 +89,14 @@ function TouriskApp() {
         if (!mounted) return;
         setHasSeenIntro(introFlag === "1");
         setUser(storedUser);
+        if (storedUser) {
+          syncCurrentUser()
+            .then((freshUser) => {
+              if (mounted && freshUser) setUser(freshUser);
+              return flushPendingDiscoveries();
+            })
+            .catch(() => {});
+        }
       })
       .finally(() => {
         if (mounted) setLoading(false);

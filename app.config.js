@@ -5,7 +5,7 @@ export default {
     name: "Tourisk",
     slug: "tourisk-mobile",
     scheme: "tourisk",
-    version: "1.3.0",
+    version: "1.6.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "dark",
@@ -18,7 +18,7 @@ export default {
     ios: {
       supportsTablet: false,
       bundleIdentifier: "app.tourisk.mvp",
-      buildNumber: "4",
+      buildNumber: "7",
       infoPlist: {
         NSLocationWhenInUseUsageDescription: "Tourisk использует геолокацию, чтобы открывать реальные территории на карте.",
         NSLocationAlwaysAndWhenInUseUsageDescription: "Tourisk сохраняет пройденный путь и открытия, когда исследование активно.",
@@ -27,7 +27,7 @@ export default {
     },
     android: {
       package: "app.tourisk.mvp",
-      versionCode: 4,
+      versionCode: 7,
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#020b0c",

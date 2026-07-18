@@ -1,3 +1,35 @@
+const FIRST_LEVEL_REQUIREMENTS = [100, 180, 300, 450, 650];
+const CAR_SPEED_MPS = 7.5;
+const BICYCLE_SPEED_MPS = 2.8;
+const MAX_EXPLORATION_ACCURACY = 80;
+const REWARD_COOLDOWN_MS = 45_000;
+const REWARD_DISTANCE_METERS = 35;
+
+export function getLevelRequirement(level) {
+  const safeLevel = Math.max(1, Math.floor(Number(level || 1)));
+  if (safeLevel <= FIRST_LEVEL_REQUIREMENTS.length) return FIRST_LEVEL_REQUIREMENTS[safeLevel - 1];
+  const step = safeLevel - FIRST_LEVEL_REQUIREMENTS.length;
+  return Math.ceil((650 + 150 * step + 25 * step * step) / 25) * 25;
+}
+
+export function getLevelStartXp(level) {
+  const safeLevel = Math.max(1, Math.floor(Number(level || 1)));
+  let total = 0;
+  for (let current = 1; current < safeLevel; current += 1) total += getLevelRequirement(current);
+  return total;
+}
+
+export function getLevelFromXp(xp) {
+  const safeXp = Math.max(0, Number(xp || 0));
+  let level = 1;
+  let threshold = getLevelRequirement(level);
+  while (safeXp >= threshold && level < 500) {
+    level += 1;
+    threshold += getLevelRequirement(level);
+  }
+  return level;
+}
+
 export function getCellId(latitude, longitude) {
   const cellSize = 0.00045;
   const latCell = Math.floor(Number(latitude) / cellSize);
@@ -57,7 +89,7 @@ export function getProgressValue(user, type, context = {}) {
     territories: visitedCells,
     cities: user.cities?.length || 0,
     countries: user.countries?.length || 0,
-    level: Number(user.level || Math.floor(Number(user.xp || 0) / 100) + 1),
+    level: getLevelFromXp(user.xp),
     xp: Number(user.xp || 0),
     distanceKm: Number(user.distanceMeters || 0) / 1000,
     exploredKm2: visitedCells * 0.01,
@@ -73,6 +105,7 @@ export function getProgressValue(user, type, context = {}) {
 }
 
 export function unlockAchievements(user, achievements = [], context = {}) {
+  user.achievements = Array.isArray(user.achievements) ? user.achievements : [];
   const unlocked = [];
   let changed = true;
   let passes = 0;
@@ -81,7 +114,7 @@ export function unlockAchievements(user, achievements = [], context = {}) {
     changed = false;
     passes += 1;
     for (const achievement of achievements) {
-      if (!achievement.isActive || user.achievements.includes(achievement.id)) continue;
+      if (achievement.isActive === false || user.achievements.includes(achievement.id)) continue;
       const current = getProgressValue(user, achievement.conditionType, context);
       if (current < Number(achievement.conditionValue || 0)) continue;
       user.achievements.push(achievement.id);
@@ -92,7 +125,7 @@ export function unlockAchievements(user, achievements = [], context = {}) {
     }
   }
 
-  user.level = Math.floor(Number(user.xp || 0) / 100) + 1;
+  user.level = getLevelFromXp(user.xp);
   return unlocked;
 }
 
@@ -110,7 +143,7 @@ export function normalizeUser(user, options = {}) {
     xp,
     coins: Number(raw.coins || 0),
     stars: Number(raw.stars || 0),
-    level: Math.floor(xp / 100) + 1,
+    level: getLevelFromXp(xp),
     exploredKm2: Number((visitedCount * 0.01).toFixed(2)),
     territories: visitedCount,
     citiesCount: raw.cities?.length || 0,
@@ -122,6 +155,7 @@ export function normalizeUser(user, options = {}) {
     streakDays: Number(raw.streakDays || 1),
     lastActiveDate: raw.lastActiveDate || null,
     lastLocation: raw.lastLocation || null,
+    transportMode: raw.transportMode || raw.lastLocation?.transportMode || "stationary",
     isBlocked: Boolean(raw.isBlocked),
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
@@ -136,43 +170,108 @@ export function normalizeUser(user, options = {}) {
   return normalized;
 }
 
+function classifyTransport(payload, previousLocation, currentLocation, distanceDelta) {
+  const timestamp = new Date();
+  const previousTimestamp = previousLocation?.updatedAt ? new Date(previousLocation.updatedAt) : null;
+  const elapsedSeconds = previousTimestamp && !Number.isNaN(previousTimestamp.getTime())
+    ? Math.max(1, (timestamp.getTime() - previousTimestamp.getTime()) / 1000)
+    : 0;
+  const inferredSpeed = elapsedSeconds > 0 ? distanceDelta / elapsedSeconds : 0;
+  const reportedSpeed = Number(payload.speedMps);
+  const speed = Number.isFinite(reportedSpeed) && reportedSpeed >= 0 ? reportedSpeed : inferredSpeed;
+  const requested = String(payload.transportMode || "").toLowerCase();
+
+  if (requested === "driving" || speed >= CAR_SPEED_MPS) return { mode: "driving", speed, inferredSpeed, timestamp };
+  if (requested === "bicycle" || speed >= BICYCLE_SPEED_MPS) return { mode: "bicycle", speed, inferredSpeed, timestamp };
+  if (requested === "walking" || speed >= 0.55) return { mode: "walking", speed, inferredSpeed, timestamp };
+  return { mode: "stationary", speed, inferredSpeed, timestamp };
+}
+
 export function applyProgress(user, payload, achievements = [], context = {}) {
+  user.xp = Number(user.xp || 0);
+  user.coins = Number(user.coins || 0);
+  user.stars = Number(user.stars || 0);
+  user.distanceMeters = Number(user.distanceMeters || 0);
+  user.streakDays = Math.max(1, Number(user.streakDays || 1));
+  user.visitedCells = Array.isArray(user.visitedCells) ? user.visitedCells : [];
+  user.cities = Array.isArray(user.cities) ? user.cities : [];
+  user.countries = Array.isArray(user.countries) ? user.countries : [];
+  user.recentTrail = Array.isArray(user.recentTrail) ? user.recentTrail : [];
+
+  const xpBefore = Number(user.xp || 0);
   const cellId = payload.cellId || getCellId(payload.latitude, payload.longitude);
   const requestedCellIds = Array.isArray(payload.cellIds) && payload.cellIds.length ? payload.cellIds : [cellId];
-  const normalizedCellIds = Array.from(new Set(requestedCellIds.map((value) => String(value || "").trim()).filter(Boolean))).slice(0, 64);
-  const newCellIds = normalizedCellIds.filter((value) => !user.visitedCells.includes(value));
-  const isNewCell = newCellIds.length > 0;
+  const normalizedCellIds = Array.from(new Set(
+    requestedCellIds.map((value) => String(value || "").trim()).filter(Boolean)
+  )).slice(0, 64);
 
   const previousLocation = user.lastLocation?.latitude != null && user.lastLocation?.longitude != null
-    ? { latitude: user.lastLocation.latitude, longitude: user.lastLocation.longitude }
+    ? {
+        latitude: user.lastLocation.latitude,
+        longitude: user.lastLocation.longitude,
+        updatedAt: user.lastLocation.updatedAt,
+      }
     : null;
   const currentLocation = { latitude: Number(payload.latitude), longitude: Number(payload.longitude) };
   const distanceDelta = distanceMeters(previousLocation, currentLocation);
-  if (distanceDelta >= 2 && distanceDelta <= 500) user.distanceMeters += distanceDelta;
+  const movement = classifyTransport(payload, previousLocation, currentLocation, distanceDelta);
+  const accuracy = Number(payload.accuracy || 0);
+  const badAccuracy = Number.isFinite(accuracy) && accuracy > MAX_EXPLORATION_ACCURACY;
+  const impossibleJump = movement.inferredSpeed > 50 || distanceDelta > 1500;
+  const explorationBlocked = movement.mode === "driving" || badAccuracy || impossibleJump;
 
-  if (isNewCell) {
-    user.visitedCells.push(...newCellIds);
-    user.xp += 10;
-    user.coins += 3;
-    user.stars += 5;
+  const newCellIds = explorationBlocked
+    ? []
+    : normalizedCellIds.filter((value) => !user.visitedCells.includes(value));
+  const isNewCell = newCellIds.length > 0;
+  if (isNewCell) user.visitedCells.push(...newCellIds);
+
+  if (!explorationBlocked && distanceDelta >= 2 && distanceDelta <= 160 && movement.inferredSpeed < CAR_SPEED_MPS) {
+    user.distanceMeters += distanceDelta;
   }
 
-  if (payload.city && !user.cities.includes(payload.city)) {
+  let explorationReward = 0;
+  if (isNewCell) {
+    const lastRewardAt = user.lastExplorationRewardAt ? new Date(user.lastExplorationRewardAt) : null;
+    const elapsedReward = lastRewardAt && !Number.isNaN(lastRewardAt.getTime())
+      ? movement.timestamp.getTime() - lastRewardAt.getTime()
+      : Infinity;
+    const rewardDistance = user.lastExplorationRewardLocation?.latitude != null
+      ? distanceMeters(user.lastExplorationRewardLocation, currentLocation)
+      : Infinity;
+
+    if (elapsedReward >= REWARD_COOLDOWN_MS && rewardDistance >= REWARD_DISTANCE_METERS) {
+      explorationReward = movement.mode === "bicycle" ? 4 : 8;
+      user.xp += explorationReward;
+      user.coins += movement.mode === "bicycle" ? 1 : 2;
+      user.stars += movement.mode === "bicycle" ? 1 : 2;
+      user.lastExplorationRewardAt = movement.timestamp;
+      user.lastExplorationRewardLocation = currentLocation;
+    }
+  }
+
+  if (!explorationBlocked && payload.city && !user.cities.includes(payload.city)) {
     user.cities.push(payload.city);
     user.xp += 20;
     user.coins += 10;
     user.stars += 10;
   }
 
-  if (payload.country && !user.countries.includes(payload.country)) {
+  if (!explorationBlocked && payload.country && !user.countries.includes(payload.country)) {
     user.countries.push(payload.country);
     user.xp += 30;
     user.stars += 15;
   }
 
-  updateActivityStreak(user);
-  user.level = Math.floor(user.xp / 100) + 1;
-  user.lastLocation = { ...currentLocation, updatedAt: new Date() };
+  updateActivityStreak(user, movement.timestamp);
+  user.transportMode = movement.mode;
+  user.lastLocation = {
+    ...currentLocation,
+    accuracy: Number.isFinite(accuracy) ? accuracy : null,
+    speed: movement.speed,
+    transportMode: movement.mode,
+    updatedAt: movement.timestamp,
+  };
 
   user.recentTrail.push({
     ...currentLocation,
@@ -180,10 +279,29 @@ export function applyProgress(user, payload, achievements = [], context = {}) {
     city: payload.city || "",
     country: payload.country || "",
     source: payload.source || "gps",
-    createdAt: new Date(),
+    accuracy: Number.isFinite(accuracy) ? accuracy : null,
+    speed: movement.speed,
+    transportMode: movement.mode,
+    createdAt: movement.timestamp,
   });
   user.recentTrail = user.recentTrail.slice(-100);
 
-  const unlocked = unlockAchievements(user, achievements, context);
-  return { isNewCell, cellId, cellIds: normalizedCellIds, newCellIds, distanceDelta, unlocked };
+  const unlocked = explorationBlocked ? [] : unlockAchievements(user, achievements, context);
+  user.level = getLevelFromXp(user.xp);
+  const xpDelta = Math.max(0, Number(user.xp || 0) - xpBefore);
+
+  return {
+    isNewCell,
+    cellId,
+    cellIds: normalizedCellIds,
+    newCellIds,
+    distanceDelta: explorationBlocked ? 0 : distanceDelta,
+    explorationReward,
+    explorationBlocked,
+    transportMode: movement.mode,
+    speedMps: movement.speed,
+    accuracy,
+    xpDelta,
+    unlocked,
+  };
 }

@@ -1,22 +1,22 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { canonicalLegendaryPlaceId } from "../data/legendaryPlaces";
-import { DEFAULT_ACHIEVEMENTS, DEFAULT_PLACES, getGameContent } from "./gameService";
+import { DEFAULT_ACHIEVEMENTS, DEFAULT_PLACES, getCachedGameContent } from "./gameService";
 import { isRequirementMet } from "./progression";
 import { STORAGE_KEYS } from "./storageKeys";
+import { LevelEngine } from "../src/maps/services/LevelEngine";
 
 export async function getPlayerStats() {
-  const [checkinsRaw, cellsRaw, userRaw, openedRaw, distanceRaw] = await Promise.all([
+  const [checkinsRaw, cellsRaw, userRaw, openedRaw, distanceRaw, content] = await Promise.all([
     AsyncStorage.getItem(STORAGE_KEYS.checkins),
     AsyncStorage.getItem(STORAGE_KEYS.visitedCells),
     AsyncStorage.getItem(STORAGE_KEYS.user),
     AsyncStorage.getItem(STORAGE_KEYS.openedLegendaryPlaces),
     AsyncStorage.getItem(STORAGE_KEYS.totalDistanceMeters),
+    getCachedGameContent().catch(() => ({ achievements: DEFAULT_ACHIEVEMENTS, places: DEFAULT_PLACES })),
   ]);
 
-  const content = await getGameContent().catch(() => ({ achievements: DEFAULT_ACHIEVEMENTS, places: DEFAULT_PLACES }));
   const achievementCatalog = content.achievements?.length ? content.achievements : DEFAULT_ACHIEVEMENTS;
   const placeCatalog = content.places?.length ? content.places : DEFAULT_PLACES;
-
   const checkins = safeJson(checkinsRaw, []);
   const visitedCells = safeJson(cellsRaw, []);
   const user = safeJson(userRaw, {});
@@ -25,8 +25,8 @@ export async function getPlayerStats() {
     ...(Array.isArray(user.openedPlaces) ? user.openedPlaces : []),
   ].map(canonicalLegendaryPlaceId)));
   AsyncStorage.setItem(STORAGE_KEYS.openedLegendaryPlaces, JSON.stringify(openedPlaces)).catch(() => {});
-  const streakDays = await updateDailyStreak();
 
+  const streakDays = await updateDailyStreak();
   const uniqueCities = checkins.filter((item, index, array) => {
     const city = String(item.title || item.city || "").toLowerCase();
     return city && index === array.findIndex((x) => String(x.title || x.city || "").toLowerCase() === city);
@@ -44,13 +44,10 @@ export async function getPlayerStats() {
   const legendaryPlaces = openedPlaces.filter((id) => placeCatalog.some((place) => place.id === id && place.rarity === "legendary")).length;
   const yerevanPlaces = openedPlaces.filter((id) => placeCatalog.some((place) => place.id === id && place.city === "Ереван")).length;
   const yerevanPercent = Math.min(100, Number((territories / 10).toFixed(1)));
-  const xp = Math.max(
-    Number(user.xp || 0),
-    territories * 10 + legendaryPlaces * 50 + hiddenPlaces * 70 + cities * 20
-  );
-  const stars = Math.max(Number(user.stars || 0), xp);
-  const coins = Math.max(Number(user.coins || 0), territories * 3 + cities * 10);
-  const level = Math.floor(xp / 100) + 1;
+  const xp = Math.max(0, Number(user.xp || 0));
+  const stars = Math.max(0, Number(user.stars || 0));
+  const coins = Math.max(0, Number(user.coins || 0));
+  const level = LevelEngine.getLevel(xp);
 
   const baseStats = {
     checkins,
@@ -77,10 +74,7 @@ export async function getPlayerStats() {
   const calculatedAchievements = achievementCatalog.filter((achievement) => isRequirementMet(achievement, baseStats)).length;
   const achievements = Math.max(Number(user.achievementsCount || 0), calculatedAchievements);
 
-  return {
-    ...baseStats,
-    achievements,
-  };
+  return { ...baseStats, achievements };
 }
 
 async function updateDailyStreak() {
@@ -100,7 +94,6 @@ async function updateDailyStreak() {
   }
 
   if (lastDate === today) return streak;
-
   const difference = dayDifference(lastDate, today);
   streak = difference === 1 ? streak + 1 : 1;
   await AsyncStorage.multiSet([
@@ -127,7 +120,7 @@ function safeJson(value, fallback) {
   if (!value) return fallback;
   try {
     return JSON.parse(value);
-  } catch (error) {
+  } catch {
     return fallback;
   }
 }

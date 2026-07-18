@@ -16,14 +16,14 @@ import DailyJourneyCard from "../components/DailyJourneyCard";
 import GoldenTrailText from "../components/GoldenTrailText";
 import LivingWorld from "../components/LivingWorld";
 import ProgressBar from "../components/ProgressBar";
-import { DEFAULT_PAWNS, getGameContent } from "../services/gameService";
+import { DEFAULT_PAWNS, getGameContent, refreshGameContent } from "../services/gameService";
 import { getStoredUser } from "../services/authService";
 import { getEveningJourney, markEveningJourneyShown } from "../services/dailyJourney";
 import { getPlayerStats } from "../services/playerStats";
 import { getLocalPawnFallback, getPawnSource } from "../services/assetResolver";
 import { LevelEngine } from "../src/maps/services/LevelEngine";
 
-const homeBg = require("../assets/backgrounds/home-world-clean.jpg");
+const homeBg = require("../assets/backgrounds/home-world-feedback.jpg");
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -59,6 +59,12 @@ export default function HomeScreen({ navigation }) {
 
   useEffect(() => {
     load();
+    refreshGameContent()
+      .then((content) => {
+        setPawns(content.pawns?.length ? content.pawns : DEFAULT_PAWNS);
+        setEveningHour(Number(content.appConfig?.dailyJourneyHour || 18));
+      })
+      .catch(() => {});
     enter.setValue(0);
     Animated.timing(enter, {
       toValue: 1,
@@ -108,8 +114,14 @@ export default function HomeScreen({ navigation }) {
 
   const level = LevelEngine.getLevel(stats.xp || 0);
   const levelProgress = LevelEngine.getProgressPercent(stats.xp || 0);
-  const nextLevelXp = LevelEngine.getXpForNextLevel();
+  const nextLevelXp = LevelEngine.getXpForNextLevel(stats.xp || 0);
   const currentLevelXp = LevelEngine.getCurrentLevelXp(stats.xp || 0);
+  const remainingXp = LevelEngine.getRemainingXp(stats.xp || 0);
+  const hasStarted = Number(stats.territories || 0) > 0 || Number(stats.distanceKm || 0) > 0;
+  const goalTitle = hasStarted ? "Продолжить путь" : "Первый шаг";
+  const goalSubtitle = hasStarted
+    ? `До уровня ${level + 1} осталось ${remainingXp} XP`
+    : "Открыть живую карту мира";
   const contentTranslate = enter.interpolate({ inputRange: [0, 1], outputRange: [18, 0] });
   const compact = height < 760;
   const pawnSize = compact ? 205 : 244;
@@ -184,8 +196,8 @@ export default function HomeScreen({ navigation }) {
             <Ionicons name="compass" size={25} color="#0b170c" />
           </View>
           <View style={styles.buttonCopy}>
-            <Text style={styles.buttonTitle}>Первый шаг</Text>
-            <Text style={styles.buttonSubtitle}>Открыть живую карту мира</Text>
+            <Text style={styles.buttonTitle}>{goalTitle}</Text>
+            <Text style={styles.buttonSubtitle}>{goalSubtitle}</Text>
           </View>
           <View style={styles.buttonArrow}>
             <Ionicons name="arrow-forward" size={21} color="#efffd3" />

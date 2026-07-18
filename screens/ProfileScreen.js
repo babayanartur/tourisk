@@ -19,15 +19,15 @@ import RarityAvatar from "../components/RarityAvatar";
 import ResilientImage from "../components/ResilientImage";
 import TravelGeographyCard from "../components/TravelGeographyCard";
 import { getStoredUser, updateProfile } from "../services/authService";
-import { DEFAULT_ACHIEVEMENTS, DEFAULT_PAWNS, getGameContent } from "../services/gameService";
+import { DEFAULT_ACHIEVEMENTS, DEFAULT_PAWNS, getGameContent, refreshGameContent } from "../services/gameService";
 import { getPlayerStats } from "../services/playerStats";
 import { isRequirementMet, requirementProgress } from "../services/progression";
 import { STORAGE_KEYS } from "../services/storageKeys";
 import { getContentImageSource, getLocalPawnFallback, getPawnSource } from "../services/assetResolver";
 import SettingsScreen from "./SettingsScreen";
 
-const profileBg = require("../assets/backgrounds/profile-world.jpg");
-const discoveryBg = require("../assets/backgrounds/home-world.jpg");
+const profileBg = require("../assets/backgrounds/home-world-feedback.jpg");
+const discoveryBg = require("../assets/backgrounds/home-world-feedback.jpg");
 
 export default function ProfileScreen({ navigation, onLogout }) {
   const insets = useSafeAreaInsets();
@@ -62,11 +62,12 @@ export default function ProfileScreen({ navigation, onLogout }) {
     setStats(playerStats);
     setContent(gameContent);
     setCheckins(checkinsRaw ? JSON.parse(checkinsRaw) : []);
-    setOpenedPlaces(openedRaw ? JSON.parse(openedRaw) : []);
+    setOpenedPlaces(playerStats.openedPlaces?.length ? playerStats.openedPlaces : (openedRaw ? JSON.parse(openedRaw) : []));
   };
 
   useEffect(() => {
     load();
+    refreshGameContent().then(setContent).catch(() => {});
     const unsubscribe = navigation.addListener("focus", load);
     return () => unsubscribe?.();
   }, [navigation]);
@@ -81,13 +82,11 @@ export default function ProfileScreen({ navigation, onLogout }) {
       .map((id) => content.places.find((place) => place.id === id))
       .filter(Boolean)
       .map((place) => ({
+        ...place,
         id: place.id,
         title: place.name,
         country: `${place.city || "Мир"}, ${place.country || "Земля"}`,
         xp: place.xp || 50,
-        rarity: place.rarity,
-        imagePath: place.imagePath,
-        imageUrl: place.imageUrl,
       }));
 
     const cityItems = checkins.map((item) => ({

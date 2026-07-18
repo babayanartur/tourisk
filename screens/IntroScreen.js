@@ -6,7 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { STORAGE_KEYS } from "../services/storageKeys";
 import LivingWorld from "../components/LivingWorld";
 
-const introBg = require("../assets/backgrounds/home-world-clean.jpg");
+const introBg = require("../assets/backgrounds/home-world-feedback.jpg");
 
 export default function IntroScreen({ onDone }) {
   const insets = useSafeAreaInsets();

@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import KyrgyzstanTravelMap from "./KyrgyzstanTravelMap";
+import WorldTravelMap from "./WorldTravelMap";
 
 export default function TravelGeographyCard({ stats = {}, checkins = [], user = null }) {
   const geography = useMemo(() => buildGeography(stats, checkins, user), [checkins, stats, user]);
@@ -20,7 +20,7 @@ export default function TravelGeographyCard({ stats = {}, checkins = [], user = 
       </View>
 
       <View style={styles.mapWrap}>
-        <KyrgyzstanTravelMap checkins={checkins} exploredKm2={stats.exploredKm2} style={styles.mapImage} />
+        <WorldTravelMap checkins={checkins} style={styles.mapImage} />
         <View pointerEvents="none" style={styles.mapShade} />
         {geography.hasLocation ? (
           <View style={styles.mapLabel}>

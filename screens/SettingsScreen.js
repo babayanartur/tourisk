@@ -20,7 +20,7 @@ import LivingWorld from "../components/LivingWorld";
 import ResilientImage from "../components/ResilientImage";
 import LegalDocumentScreen from "./LegalDocumentScreen";
 
-const background = require("../assets/backgrounds/profile-world.jpg");
+const background = require("../assets/backgrounds/home-world-feedback.jpg");
 const SETTINGS_KEYS = {
   notifications: "tourisk:settings:notifications",
   sounds: "tourisk:settings:sounds",

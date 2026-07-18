@@ -1,5 +1,7 @@
 import { GridEngine } from "./GridEngine";
 
+const EARTH_RADIUS = 6378137;
+
 export class FogEngine {
   static parseCell(cellId) {
     if (!cellId) return null;
@@ -45,69 +47,129 @@ export class FogEngine {
     });
   }
 
+  static toMercator(latitude, longitude) {
+    const lat = Math.max(-85, Math.min(85, Number(latitude))) * Math.PI / 180;
+    const lng = Number(longitude) * Math.PI / 180;
+    return {
+      x: EARTH_RADIUS * lng,
+      y: EARTH_RADIUS * Math.log(Math.tan(Math.PI / 4 + lat / 2)),
+    };
+  }
+
+  static fromMercator(x, y) {
+    return {
+      latitude: (2 * Math.atan(Math.exp(y / EARTH_RADIUS)) - Math.PI / 2) * 180 / Math.PI,
+      longitude: (x / EARTH_RADIUS) * 180 / Math.PI,
+    };
+  }
+
   static getFogCloudsForRegion(region, visitedCells = [], options = {}) {
     if (!region || !Number.isFinite(Number(region.latitude)) || !Number.isFinite(Number(region.longitude))) return [];
 
-    const latitudeDelta = Math.max(0.004, Math.min(0.24, Number(region.latitudeDelta || 0.028)));
-    const longitudeDelta = Math.max(0.004, Math.min(0.24, Number(region.longitudeDelta || 0.028)));
+    const latitudeDelta = Math.max(0.004, Math.min(0.18, Number(region.latitudeDelta || 0.028)));
+    const longitudeDelta = Math.max(0.004, Math.min(0.18, Number(region.longitudeDelta || 0.028)));
     const revealRadius = Math.max(55, Number(options.revealRadiusMeters || 105));
-    const rows = 11;
-    const columns = 8;
-    const latSpan = latitudeDelta * 1.55;
-    const lngSpan = longitudeDelta * 1.55;
-    const latStep = latSpan / rows;
-    const lngStep = lngSpan / columns;
-    const latMeters = latStep * 111320;
-    const lngMeters = lngStep * 111320 * Math.cos((Number(region.latitude) * Math.PI) / 180);
-    const baseRadius = Math.max(82, Math.max(latMeters, lngMeters) * 0.72);
-    const minLatitude = Number(region.latitude) - latSpan / 2;
-    const minLongitude = Number(region.longitude) - lngSpan / 2;
-    const maxLatitude = minLatitude + latSpan;
-    const maxLongitude = minLongitude + lngSpan;
-    const visitedCenters = visitedCells
-      .map((cellId) => this.cellCenter(cellId))
-      .filter((point) => point
-        && point.latitude >= minLatitude - latStep * 2
-        && point.latitude <= maxLatitude + latStep * 2
-        && point.longitude >= minLongitude - lngStep * 2
-        && point.longitude <= maxLongitude + lngStep * 2);
-    const clouds = [];
+    const maxClouds = Math.max(12, Math.min(44, Number(options.maxClouds || 34)));
+    const centerLat = Number(region.latitude);
+    const centerLng = Number(region.longitude);
 
-    for (let row = 0; row <= rows; row += 1) {
-      for (let col = 0; col <= columns; col += 1) {
-        const seed = (row + 31) * 73856093 ^ (col + 17) * 19349663 ^ Math.round(Number(region.latitude) * 1000);
-        const jitterLat = (this.hash(seed) - 0.5) * latStep * 0.36;
-        const jitterLng = (this.hash(seed + 71) - 0.5) * lngStep * 0.36;
-        const center = {
-          latitude: minLatitude + row * latStep + jitterLat,
-          longitude: minLongitude + col * lngStep + jitterLng,
-        };
-        const nearVisited = visitedCenters.some((visited) => this.distanceMeters(center, visited) <= revealRadius + baseRadius * 0.42);
+    // Region deltas are the whole visible span. We render beyond the edges so rotation,
+    // aspect-ratio differences and map inertia do not expose bare satellite tiles.
+    const northWest = this.toMercator(
+      centerLat + latitudeDelta * 0.76,
+      centerLng - longitudeDelta * 0.76
+    );
+    const southEast = this.toMercator(
+      centerLat - latitudeDelta * 0.76,
+      centerLng + longitudeDelta * 0.76
+    );
+    const minX = Math.min(northWest.x, southEast.x);
+    const maxX = Math.max(northWest.x, southEast.x);
+    const minY = Math.min(northWest.y, southEast.y);
+    const maxY = Math.max(northWest.y, southEast.y);
+    const extendedArea = Math.max(1, (maxX - minX) * (maxY - minY));
+    let spacing = Math.max(120, Math.sqrt(extendedArea / maxClouds));
+
+    const getGridBounds = (nextSpacing) => {
+      const startCol = Math.floor(minX / nextSpacing) - 1;
+      const endCol = Math.ceil(maxX / nextSpacing) + 1;
+      const startRow = Math.floor(minY / nextSpacing) - 1;
+      const endRow = Math.ceil(maxY / nextSpacing) + 1;
+      return {
+        startCol,
+        endCol,
+        startRow,
+        endRow,
+        count: (endCol - startCol + 1) * (endRow - startRow + 1),
+      };
+    };
+
+    let grid = getGridBounds(spacing);
+    for (let attempt = 0; attempt < 40 && grid.count > maxClouds + 8; attempt += 1) {
+      spacing *= 1.08;
+      grid = getGridBounds(spacing);
+    }
+    const { startCol, endCol, startRow, endRow } = grid;
+
+    const visitedCenters = [];
+    if (options.currentLocation?.latitude != null && options.currentLocation?.longitude != null) {
+      visitedCenters.push({
+        latitude: Number(options.currentLocation.latitude),
+        longitude: Number(options.currentLocation.longitude),
+      });
+    }
+
+    for (let index = visitedCells.length - 1; index >= 0; index -= 1) {
+      const point = this.cellCenter(visitedCells[index]);
+      if (!point) continue;
+      if (Math.abs(point.latitude - centerLat) > latitudeDelta * 1.05) continue;
+      if (Math.abs(point.longitude - centerLng) > longitudeDelta * 1.05) continue;
+
+      // A 45 m bucket keeps the path continuous while avoiding thousands of checks.
+      const duplicate = visitedCenters.some((existing) => this.distanceMeters(existing, point) < 45);
+      if (!duplicate) visitedCenters.push(point);
+      if (visitedCenters.length >= 180) break;
+    }
+
+    const clouds = [];
+    for (let row = startRow; row <= endRow; row += 1) {
+      for (let col = startCol; col <= endCol; col += 1) {
+        const seed = ((row * 73856093) ^ (col * 19349663)) >>> 0;
+        const staggerX = row % 2 === 0 ? 0 : spacing * 0.46;
+        const jitterX = (this.hash(seed + 17) - 0.5) * spacing * 0.34;
+        const jitterY = (this.hash(seed + 71) - 0.5) * spacing * 0.30;
+        const center = this.fromMercator(
+          (col + 0.5) * spacing + staggerX + jitterX,
+          (row + 0.5) * spacing + jitterY
+        );
+
+        const cloudRadius = Math.max(115, spacing * (0.40 + this.hash(seed + 113) * 0.10));
+        const nearVisited = visitedCenters.some((visited) => (
+          this.distanceMeters(center, visited) <= revealRadius + cloudRadius
+        ));
         if (nearVisited) continue;
 
-        const radius = baseRadius * (0.88 + this.hash(seed + 113) * 0.24);
-        const opacity = 0.46 + this.hash(seed + 211) * 0.12;
-        const lobePattern = [
-          [0, 0, 1],
-          [-0.52, 0.05, 0.76],
-          [0.52, 0.04, 0.78],
-          [-0.25, 0.36, 0.62],
-          [0.27, 0.34, 0.66],
-        ];
-
+        // Large overlapping textures create a continuous cloud blanket with a small,
+        // predictable number of native map markers.
+        const width = Math.round(225 + this.hash(seed + 211) * 125);
         clouds.push({
-          id: `fog-${row}-${col}-${Math.round(center.latitude * 10000)}-${Math.round(center.longitude * 10000)}`,
-          lobes: lobePattern.map(([x, y, scale], index) => ({
-            id: `${index}`,
-            center: this.offsetPoint(center, x * radius, y * radius),
-            radius: radius * scale,
-            opacity: Math.max(0.28, opacity - index * 0.022),
-          })),
+          id: `fog-${row}-${col}`,
+          center,
+          width,
+          height: Math.round(width * (0.60 + this.hash(seed + 251) * 0.10)),
+          opacity: 0.66 + this.hash(seed + 307) * 0.20,
+          variant: 1 + Math.floor(this.hash(seed + 401) * 3),
+          rotation: Math.round((this.hash(seed + 443) - 0.5) * 28),
+          flip: this.hash(seed + 479) > 0.5,
+          priority: this.distanceMeters(center, region),
         });
       }
     }
 
-    return clouds;
+    // Adaptive spacing normally keeps this below the cap. The small overflow guard is
+    // only for extreme aspect ratios and prevents native-map memory spikes.
+    if (clouds.length <= maxClouds + 8) return clouds;
+    return clouds.sort((a, b) => a.priority - b.priority).slice(0, maxClouds + 8);
   }
 
   static hash(value) {

@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "Tourisk",
-    "slug": "tourisk-next",
-    "version": "1.0.0",
+    "slug": "tourisk-mobile",
+    "version": "1.6.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -13,7 +13,7 @@
       "backgroundColor": "#04120d"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "app.tourisk.mvp",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Tourisk использует геолокацию, чтобы открывать карту вокруг вас.",
@@ -22,7 +22,8 @@
         "UIBackgroundModes": [
           "location"
         ]
-      }
+      },
+      "buildNumber": "7"
     },
     "android": {
       "permissions": [
@@ -34,7 +35,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#04120d"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "versionCode": 7
     },
     "web": {
       "favicon": "./assets/favicon.png"

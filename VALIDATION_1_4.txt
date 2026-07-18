@@ -1,0 +1,12 @@
+Tourisk Mobile 1.4.0 validation
+
+2026-07-18
+
+1. EXPO_NO_TELEMETRY=1 npx expo export --platform ios --output-dir .expo-check
+   RESULT: SUCCESS, 890 modules, 49 assets.
+
+2. EXPO_NO_TELEMETRY=1 npx expo export --platform android --output-dir .expo-check-android
+   RESULT: SUCCESS, 888 modules, 49 assets.
+
+3. Pawn assets
+   RESULT: 10 local PNG files, 1024x1024 RGBA.

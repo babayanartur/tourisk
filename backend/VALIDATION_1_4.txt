@@ -1,0 +1,18 @@
+Tourisk Backend 1.4.0 validation
+
+2026-07-18
+
+1. npm run check
+   RESULT: SUCCESS.
+
+2. Level requirements test
+   RESULT: 100, 180, 300, 450, 650, 825, 1050, 1325.
+
+3. Walking territory test
+   RESULT: +8 XP, one new cell, exploration allowed.
+
+4. Driving territory test
+   RESULT: +0 XP, zero new cells, exploration blocked.
+
+5. Pawn assets
+   RESULT: 10 seed PNG files and 10 upload PNG files, 1024x1024 RGBA.

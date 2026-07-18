@@ -132,7 +132,7 @@ export const DEFAULT_PAWNS = [
     condition: "Доступна сразу",
     unlockType: "level",
     unlockValue: 1,
-    imagePath: "/uploads/pawns/pawn_green_v13.png",
+    imagePath: "/uploads/pawns/pawn_green_v14.png",
     glowColor: "#a9ec56",
     mapScale: 1,
   },
@@ -143,7 +143,7 @@ export const DEFAULT_PAWNS = [
     condition: "Пройди 10 км",
     unlockType: "distanceKm",
     unlockValue: 10,
-    imagePath: "/uploads/pawns/pawn_bronze_v13.png",
+    imagePath: "/uploads/pawns/pawn_bronze_v14.png",
     glowColor: "#d88c48",
     mapScale: 1,
   },
@@ -154,7 +154,7 @@ export const DEFAULT_PAWNS = [
     condition: "Получи 3 достижения",
     unlockType: "achievements",
     unlockValue: 3,
-    imagePath: "/uploads/pawns/pawn_silver_v13.png",
+    imagePath: "/uploads/pawns/pawn_silver_v14.png",
     glowColor: "#68d6ff",
     mapScale: 1,
   },
@@ -165,7 +165,7 @@ export const DEFAULT_PAWNS = [
     condition: "Собери 1000 звёзд",
     unlockType: "stars",
     unlockValue: 1000,
-    imagePath: "/uploads/pawns/pawn_gold_v13.png",
+    imagePath: "/uploads/pawns/pawn_gold_v14.png",
     glowColor: "#f4c451",
     mapScale: 1.04,
   },
@@ -176,7 +176,7 @@ export const DEFAULT_PAWNS = [
     condition: "Исследуй 100 км²",
     unlockType: "exploredKm2",
     unlockValue: 100,
-    imagePath: "/uploads/pawns/pawn_azure_v13.png",
+    imagePath: "/uploads/pawns/pawn_azure_v14.png",
     glowColor: "#68d6ff",
     mapScale: 1,
   },
@@ -187,7 +187,7 @@ export const DEFAULT_PAWNS = [
     condition: "Открой 10% Еревана",
     unlockType: "yerevanPercent",
     unlockValue: 10,
-    imagePath: "/uploads/pawns/pawn_violet_v13.png",
+    imagePath: "/uploads/pawns/pawn_violet_v14.png",
     glowColor: "#c66dff",
     mapScale: 1,
   },
@@ -198,7 +198,7 @@ export const DEFAULT_PAWNS = [
     condition: "Пройди 100 км",
     unlockType: "distanceKm",
     unlockValue: 100,
-    imagePath: "/uploads/pawns/pawn_ember_v13.png",
+    imagePath: "/uploads/pawns/pawn_ember_v14.png",
     glowColor: "#ff6c45",
     mapScale: 1,
   },
@@ -209,7 +209,7 @@ export const DEFAULT_PAWNS = [
     condition: "Открой 5 легендарных мест",
     unlockType: "legendaryPlaces",
     unlockValue: 5,
-    imagePath: "/uploads/pawns/pawn_crystal_v13.png",
+    imagePath: "/uploads/pawns/pawn_crystal_v14.png",
     glowColor: "#78ffd4",
     mapScale: 1.05,
   },
@@ -220,7 +220,7 @@ export const DEFAULT_PAWNS = [
     condition: "Найди 5 скрытых мест",
     unlockType: "hiddenPlaces",
     unlockValue: 5,
-    imagePath: "/uploads/pawns/pawn_shadow_v13.png",
+    imagePath: "/uploads/pawns/pawn_shadow_v14.png",
     glowColor: "#8d72d8",
     mapScale: 1,
   },
@@ -231,23 +231,24 @@ export const DEFAULT_PAWNS = [
     condition: "Заходи 7 дней подряд",
     unlockType: "streakDays",
     unlockValue: 7,
-    imagePath: "/uploads/pawns/pawn_aurora_v13.png",
+    imagePath: "/uploads/pawns/pawn_aurora_v14.png",
     glowColor: "#78ffd4",
     mapScale: 1.05,
   },
-  {
-  id: "levon-cave",
-  name: "Пещера Левона",
-  city: "Ариндж",
-  country: "Армения",
-  latitude: 40.2594,
-  longitude: 44.6337,
-  rarity: "hidden",
-  xp: 120,
-},
+
 ];
 
 export const DEFAULT_PLACES = legendaryPlaces.map((place) => ({ ...place }));
+
+
+function safeJson(value, fallback) {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
 
 function hydratePawn(pawn) {
   const local = DEFAULT_PAWNS.find((item) => item.id === pawn?.id) || {};
@@ -261,40 +262,55 @@ function hydratePawn(pawn) {
   };
 }
 
-export async function getGameContent() {
+function defaultContent() {
+  return {
+    achievements: DEFAULT_ACHIEVEMENTS,
+    pawns: DEFAULT_PAWNS,
+    places: DEFAULT_PLACES,
+    appConfig: {},
+    contentVersion: 0,
+  };
+}
+
+function hydrateContent(raw = {}) {
+  return {
+    achievements: Array.isArray(raw.achievements) && raw.achievements.length
+      ? raw.achievements
+      : DEFAULT_ACHIEVEMENTS,
+    pawns: Array.isArray(raw.pawns) && raw.pawns.length
+      ? raw.pawns.map(hydratePawn)
+      : DEFAULT_PAWNS,
+    places: Array.isArray(raw.places) && raw.places.length
+      ? raw.places.map(hydrateLegendaryPlace)
+      : DEFAULT_PLACES,
+    appConfig: raw.appConfig || {},
+    contentVersion: raw.contentVersion || 0,
+  };
+}
+
+export async function getCachedGameContent() {
+  const cachedRaw = await AsyncStorage.getItem(STORAGE_KEYS.gameContent).catch(() => null);
+  if (!cachedRaw) return defaultContent();
   try {
-    const data = await apiRequest("/api/game/content");
-    const content = {
-      achievements: Array.isArray(data.achievements) ? data.achievements : [],
-      pawns: Array.isArray(data.pawns) ? data.pawns.map(hydratePawn) : [],
-      places: Array.isArray(data.places) ? data.places.map(hydrateLegendaryPlace) : DEFAULT_PLACES,
-      appConfig: data.appConfig || {},
-      contentVersion: data.contentVersion || 0,
-    };
-    await AsyncStorage.setItem(STORAGE_KEYS.gameContent, JSON.stringify(content));
-    return content;
-  } catch (error) {
-    const cachedRaw = await AsyncStorage.getItem(STORAGE_KEYS.gameContent).catch(() => null);
-    if (cachedRaw) {
-      try {
-        const cached = JSON.parse(cachedRaw);
-        return {
-          achievements: Array.isArray(cached.achievements) ? cached.achievements : DEFAULT_ACHIEVEMENTS,
-          pawns: Array.isArray(cached.pawns) ? cached.pawns.map(hydratePawn) : DEFAULT_PAWNS,
-          places: Array.isArray(cached.places) ? cached.places.map(hydrateLegendaryPlace) : DEFAULT_PLACES,
-          appConfig: cached.appConfig || {},
-          contentVersion: cached.contentVersion || 0,
-        };
-      } catch {}
-    }
-    return {
-      achievements: DEFAULT_ACHIEVEMENTS,
-      pawns: DEFAULT_PAWNS,
-      places: DEFAULT_PLACES,
-      appConfig: {},
-      contentVersion: 0,
-    };
+    return hydrateContent(JSON.parse(cachedRaw));
+  } catch {
+    return defaultContent();
   }
+}
+
+export async function refreshGameContent() {
+  const data = await apiRequest("/api/game/content");
+  const content = hydrateContent(data);
+  await AsyncStorage.setItem(STORAGE_KEYS.gameContent, JSON.stringify(content));
+  return content;
+}
+
+// Cache-first: screens draw immediately and refresh in the background instead
+// of staring at a spinner while mobile networking remembers its purpose.
+export async function getGameContent({ refresh = true } = {}) {
+  const cached = await getCachedGameContent();
+  if (refresh) refreshGameContent().catch(() => {});
+  return cached;
 }
 
 export async function saveLocationProgress(payload) {
@@ -304,7 +320,7 @@ export async function saveLocationProgress(payload) {
       body: JSON.stringify(payload),
     });
 
-    if (data?.user) await saveUser(data.user);
+    if (data?.user) data.user = await saveUser(data.user);
     return data;
   } catch (error) {
     return null;
@@ -317,11 +333,50 @@ export async function savePlaceDiscovery(placeId) {
       method: "POST",
       body: JSON.stringify({}),
     });
-    if (data?.user) await saveUser(data.user);
+    if (data?.user) data.user = await saveUser(data.user);
+    const pendingRaw = await AsyncStorage.getItem(STORAGE_KEYS.pendingDiscoveries);
+    const pending = safeJson(pendingRaw, []);
+    if (pending.includes(placeId)) {
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.pendingDiscoveries,
+        JSON.stringify(pending.filter((id) => id !== placeId))
+      );
+    }
     return data;
   } catch (error) {
+    const pendingRaw = await AsyncStorage.getItem(STORAGE_KEYS.pendingDiscoveries).catch(() => null);
+    const pending = safeJson(pendingRaw, []);
+    if (!pending.includes(placeId)) {
+      await AsyncStorage.setItem(STORAGE_KEYS.pendingDiscoveries, JSON.stringify([...pending, placeId]));
+    }
     return null;
   }
+}
+
+export async function flushPendingDiscoveries() {
+  const pendingRaw = await AsyncStorage.getItem(STORAGE_KEYS.pendingDiscoveries).catch(() => null);
+  const pending = safeJson(pendingRaw, []);
+  if (!Array.isArray(pending) || !pending.length) return [];
+
+  const completed = [];
+  for (const placeId of pending) {
+    try {
+      const data = await apiRequest(`/api/me/discoveries/${encodeURIComponent(placeId)}`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      if (data?.user) await saveUser(data.user);
+      completed.push(placeId);
+    } catch {}
+  }
+
+  if (completed.length) {
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.pendingDiscoveries,
+      JSON.stringify(pending.filter((id) => !completed.includes(id)))
+    );
+  }
+  return completed;
 }
 
 export async function getLeaderboard() {

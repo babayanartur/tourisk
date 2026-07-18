@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LivingWorld from "./LivingWorld";
 import { formatJourneyDistance, formatJourneyDuration } from "../services/dailyJourney";
 
-const journeyBackground = require("../assets/backgrounds/home-world-clean.jpg");
+const journeyBackground = require("../assets/backgrounds/home-world-feedback.jpg");
 
 export default function DailyJourneyCard({ journey, onClose }) {
   const insets = useSafeAreaInsets();

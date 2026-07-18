@@ -39,7 +39,7 @@ function ensureDefaultPlaceFiles() {
 
 const LEGACY_PAWN_PATHS = new Map(DEFAULT_PAWNS.map((pawn) => [
   pawn.id,
-  String(pawn.imagePath || "").replace("_v13.png", ".png"),
+  String(pawn.imagePath || "").replace(/_v\d+\.png$/, ".png"),
 ]));
 
 async function upsertDefaults(Model, items) {
@@ -52,10 +52,15 @@ async function upsertDefaults(Model, items) {
 
     const patch = {};
     const legacyPawnPath = LEGACY_PAWN_PATHS.get(item.id);
+    const existingPawnPath = String(existing.imagePath || "");
     const shouldMigrateDefaultPawn = Model === Pawn
       && item.imagePath
       && legacyPawnPath
-      && (!existing.imagePath || existing.imagePath === legacyPawnPath);
+      && (
+        !existingPawnPath
+        || existingPawnPath === legacyPawnPath
+        || existingPawnPath === String(item.imagePath).replace("_v14.png", "_v13.png")
+      );
     if ((!existing.imagePath && item.imagePath) || shouldMigrateDefaultPawn) patch.imagePath = item.imagePath;
     if (existing.sortOrder === undefined || existing.sortOrder === null) patch.sortOrder = item.sortOrder || 0;
 
@@ -75,7 +80,7 @@ async function upsertDefaults(Model, items) {
   }
 }
 
-const CONTENT_SEED_VERSION = 3;
+const CONTENT_SEED_VERSION = 4;
 
 const LEGACY_PLACE_ID_MAP = {
   republic: "republic_square",

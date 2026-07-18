@@ -1,0 +1,7 @@
+Tourisk Backend 1.5.0 validation
+
+[OK] npm run check
+[OK] src/routes/me.js syntax
+[OK] src/utils/userMutation.js syntax
+[OK] симуляция VersionError: первая запись конфликтует, вторая попытка успешно сохраняется
+[OK] async ошибки /api/me передаются в Express middleware

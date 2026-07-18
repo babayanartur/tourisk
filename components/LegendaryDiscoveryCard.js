@@ -19,13 +19,24 @@ const fogOne = require("../assets/fog/fog_day_01.png");
 const fogTwo = require("../assets/fog/fog_day_02.png");
 const awakeningSound = require("../assets/sounds/legendary-awakening.wav");
 
-export default function LegendaryDiscoveryCard({ place, onClose }) {
+export default function LegendaryDiscoveryCard({ place, onClose, autoCloseMs = 12000 }) {
   const insets = useSafeAreaInsets();
   const entrance = useRef(new Animated.Value(0)).current;
   const atmosphere = useRef(new Animated.Value(0)).current;
   const fogDrift = useRef(new Animated.Value(0)).current;
   const soundRef = useRef(null);
   const [closing, setClosing] = useState(false);
+
+  function close() {
+    if (closing) return;
+    setClosing(true);
+    Animated.timing(entrance, {
+      toValue: 0,
+      duration: 720,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => onClose?.());
+  }
 
   useEffect(() => {
     if (!place) return undefined;
@@ -76,6 +87,9 @@ export default function LegendaryDiscoveryCard({ place, onClose }) {
     entranceAnimation.start();
     atmosphereAnimation.start();
     fogAnimation.start();
+    const autoCloseTimer = Number(autoCloseMs || 0) > 0
+      ? setTimeout(() => close(), Number(autoCloseMs))
+      : null;
 
     let cancelled = false;
     Audio.setAudioModeAsync({
@@ -99,6 +113,7 @@ export default function LegendaryDiscoveryCard({ place, onClose }) {
 
     return () => {
       cancelled = true;
+      if (autoCloseTimer) clearTimeout(autoCloseTimer);
       entranceAnimation.stop();
       atmosphereAnimation.stop();
       fogAnimation.stop();
@@ -106,7 +121,7 @@ export default function LegendaryDiscoveryCard({ place, onClose }) {
       soundRef.current = null;
       sound?.stopAsync().catch(() => {}).finally(() => sound?.unloadAsync().catch(() => {}));
     };
-  }, [atmosphere, entrance, fogDrift, place]);
+  }, [atmosphere, autoCloseMs, entrance, fogDrift, place]);
 
   if (!place) return null;
 
@@ -117,17 +132,6 @@ export default function LegendaryDiscoveryCard({ place, onClose }) {
   const fogX = fogDrift.interpolate({ inputRange: [0, 1], outputRange: [-85, 65] });
   const fogXReverse = fogDrift.interpolate({ inputRange: [0, 1], outputRange: [55, -95] });
   const revisiting = Boolean(place.revisiting);
-
-  const close = () => {
-    if (closing) return;
-    setClosing(true);
-    Animated.timing(entrance, {
-      toValue: 0,
-      duration: 720,
-      easing: Easing.inOut(Easing.cubic),
-      useNativeDriver: true,
-    }).start(() => onClose?.());
-  };
 
   return (
     <Modal visible transparent statusBarTranslucent animationType="none" onRequestClose={close}>
