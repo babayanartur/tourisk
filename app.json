@@ -2,7 +2,7 @@
   "expo": {
     "name": "Tourisk",
     "slug": "tourisk-mobile",
-    "version": "1.6.0",
+    "version": "1.8.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -23,7 +23,7 @@
           "location"
         ]
       },
-      "buildNumber": "7"
+      "buildNumber": "14"
     },
     "android": {
       "permissions": [
@@ -36,7 +36,7 @@
         "backgroundColor": "#04120d"
       },
       "edgeToEdgeEnabled": true,
-      "versionCode": 7
+      "versionCode": 14
     },
     "web": {
       "favicon": "./assets/favicon.png"

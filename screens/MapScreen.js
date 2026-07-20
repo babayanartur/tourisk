@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Easing,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -17,8 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import LegendaryDiscoveryCard from "../components/LegendaryDiscoveryCard";
 import ExplorerHUD from "../components/ExplorerHUD";
-import FogOverlay from "../components/FogOverlay";
-import MapFogClouds from "../components/MapFogClouds";
+import NativeMapFogLayer from "../components/NativeMapFogLayer";
 import LivingWorld from "../components/LivingWorld";
 import StaticPawn from "../components/StaticPawn";
 import {
@@ -156,7 +154,6 @@ export default function MapScreen() {
   const appConfigRef = useRef({ revealRadiusMeters: 105 });
   const mountedRef = useRef(true);
   const xpAnim = useRef(new Animated.Value(0)).current;
-  const pawnPulse = useRef(new Animated.Value(0)).current;
   const locatePulse = useRef(new Animated.Value(0)).current;
   const positionQueueRef = useRef(Promise.resolve());
 
@@ -192,8 +189,8 @@ export default function MapScreen() {
       locationSubscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
-          distanceInterval: 5,
-          timeInterval: 1800,
+          distanceInterval: 8,
+          timeInterval: 4000,
           mayShowUserSettingsDialog: true,
         },
         (position) => enqueuePosition(
@@ -256,25 +253,15 @@ export default function MapScreen() {
   }, []);
 
   useEffect(() => {
-    const pawnLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pawnPulse, { toValue: 1, duration: 2100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(pawnPulse, { toValue: 0, duration: 2100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    );
     const locateLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(locatePulse, { toValue: 1, duration: 1800, useNativeDriver: true }),
         Animated.timing(locatePulse, { toValue: 0, duration: 1800, useNativeDriver: true }),
       ])
     );
-    pawnLoop.start();
     locateLoop.start();
-    return () => {
-      pawnLoop.stop();
-      locateLoop.stop();
-    };
-  }, [locatePulse, pawnPulse]);
+    return () => locateLoop.stop();
+  }, [locatePulse]);
 
   const startBackgroundTracking = async () => {
     const started = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK).catch(() => false);
@@ -317,7 +304,7 @@ export default function MapScreen() {
       AsyncStorage.setItem(STORAGE_KEYS.openedLegendaryPlaces, JSON.stringify(canonicalOpened)).catch(() => {});
     }
 
-    setLiveTrail(safeJson(trailRaw, []).filter((point) => Date.now() - Number(point.timestamp || 0) < 36000).slice(-36));
+    setLiveTrail(safeJson(trailRaw, []).filter((point) => Date.now() - Number(point.timestamp || 0) < 12 * 60 * 60 * 1000).slice(-120));
     const nextPlaces = content.places || [];
     const nextPawns = content.pawns?.length ? content.pawns : DEFAULT_PAWNS;
     placesRef.current = nextPlaces;
@@ -409,8 +396,8 @@ export default function MapScreen() {
         if (distance < 3) return prev;
       }
       const updated = [...prev, point]
-        .filter((item) => Date.now() - Number(item.timestamp || 0) < 36000)
-        .slice(-36);
+        .filter((item) => Date.now() - Number(item.timestamp || 0) < 12 * 60 * 60 * 1000)
+        .slice(-120);
       AsyncStorage.setItem(STORAGE_KEYS.locationTrail, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
@@ -678,16 +665,24 @@ export default function MapScreen() {
     return value;
   };
 
+  const handleRegionChangeComplete = (nextRegion) => {
+    if (!nextRegion) return;
+    setRegion((previous) => {
+      const centerMoved = Math.abs(Number(previous.latitude) - Number(nextRegion.latitude)) > 0.00004
+        || Math.abs(Number(previous.longitude) - Number(nextRegion.longitude)) > 0.00004;
+      const zoomChanged = Math.abs(Number(previous.latitudeDelta) - Number(nextRegion.latitudeDelta)) > 0.00008
+        || Math.abs(Number(previous.longitudeDelta) - Number(nextRegion.longitudeDelta)) > 0.00008;
+      return centerMoved || zoomChanged ? nextRegion : previous;
+    });
+  };
+
   const revealRadiusMeters = Math.max(55, Number(appConfig.revealRadiusMeters || 105));
   const level = LevelEngine.getLevel(stats.xp || 0);
   const levelProgress = LevelEngine.getProgressPercent(stats.xp || 0);
   const selectedPawn = getSelectedPawn(pawns, stats.selectedPawn || "pawn_green");
-  const pawnScale = pawnPulse.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1.045] });
-  const pawnY = pawnPulse.interpolate({ inputRange: [0, 1], outputRange: [2, -3] });
-  const pawnGlowOpacity = pawnPulse.interpolate({ inputRange: [0, 1], outputRange: [0.38, 0.78] });
   const locateScale = locatePulse.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1.12] });
   const locateOpacity = locatePulse.interpolate({ inputRange: [0, 1], outputRange: [0.14, 0.42] });
-  const visibleTrail = liveTrail.slice(-32);
+  const visibleTrail = liveTrail.slice(-48);
 
   if (permissionDenied) {
     return (
@@ -737,45 +732,36 @@ export default function MapScreen() {
         moveOnMarkerPress={false}
         rotateEnabled={false}
         pitchEnabled={false}
-        onRegionChangeComplete={setRegion}
+        onRegionChangeComplete={handleRegionChangeComplete}
       >
-        {visibleTrail.slice(1).map((point, index) => {
-          const prevPoint = visibleTrail[index];
-          const opacity = Math.max(0.08, 1 - (Date.now() - point.timestamp) / 42000);
-          return (
-            <React.Fragment key={`trail-${point.timestamp}-${index}`}>
-              <Polyline
-                coordinates={[prevPoint, point]}
-                strokeColor={`rgba(255, 193, 77, ${opacity * 0.24})`}
-                strokeWidth={15}
-                lineCap="round"
-                lineJoin="round"
-                zIndex={7000}
-              />
-              <Polyline
-                coordinates={[prevPoint, point]}
-                strokeColor={`rgba(255, 225, 145, ${opacity * 0.94})`}
-                strokeWidth={4.5}
-                lineCap="round"
-                lineJoin="round"
-                zIndex={7001}
-              />
-            </React.Fragment>
-          );
-        })}
+        <NativeMapFogLayer
+          region={region}
+          visitedCells={visitedCells}
+          liveTrail={liveTrail}
+          revealRadiusMeters={revealRadiusMeters}
+          currentLocation={location}
+        />
 
-        <FogOverlay
-          region={region}
-          visitedCells={visitedCells}
-          revealRadiusMeters={revealRadiusMeters}
-          currentLocation={location}
-        />
-        <MapFogClouds
-          region={region}
-          visitedCells={visitedCells}
-          revealRadiusMeters={revealRadiusMeters}
-          currentLocation={location}
-        />
+        {visibleTrail.length >= 2 ? (
+          <>
+            <Polyline
+              coordinates={visibleTrail}
+              strokeColor="rgba(255, 193, 77, 0.18)"
+              strokeWidth={13}
+              lineCap="round"
+              lineJoin="round"
+              zIndex={7000}
+            />
+            <Polyline
+              coordinates={visibleTrail}
+              strokeColor="rgba(255, 225, 145, 0.82)"
+              strokeWidth={4}
+              lineCap="round"
+              lineJoin="round"
+              zIndex={7001}
+            />
+          </>
+        ) : null}
 
         {places.map((place) => {
           const canonicalId = canonicalLegendaryPlaceId(place.id);
@@ -813,14 +799,14 @@ export default function MapScreen() {
           coordinate={{ latitude: location.latitude, longitude: location.longitude }}
           anchor={{ x: 0.5, y: 0.78 }}
           zIndex={99999}
-          tracksViewChanges
+          tracksViewChanges={false}
         >
-          <Animated.View style={[styles.playerMarker, { transform: [{ translateY: pawnY }, { scale: pawnScale }] }]}> 
-            <Animated.View
+          <View style={styles.playerMarker}>
+            <View
               style={[
                 styles.markerGlow,
                 {
-                  opacity: pawnGlowOpacity,
+                  opacity: 0.52,
                   backgroundColor: selectedPawn.glowColor || "#b7ee59",
                   shadowColor: selectedPawn.glowColor || "#b7ee59",
                 },
@@ -831,13 +817,12 @@ export default function MapScreen() {
               fallbackSource={getLocalPawnFallback(selectedPawn)}
               rarity={selectedPawn.rarity}
               glowColor={selectedPawn.glowColor}
-              size={122 * Number(selectedPawn.mapScale || 1)}
+              size={112 * Number(selectedPawn.mapScale || 1)}
             />
-          </Animated.View>
+          </View>
         </Marker>
       </MapView>
 
-      <View pointerEvents="none" style={styles.fantasyTint} />
       <ExplorerHUD
         xp={stats.xp || 0}
         level={level}
@@ -928,7 +913,6 @@ const styles = StyleSheet.create({
   },
   loadingTitle: { marginTop: 15, color: "#fff", fontSize: 26, fontWeight: "900", textAlign: "center" },
   loadingText: { marginTop: 10, color: "rgba(255,255,255,0.62)", fontSize: 14, lineHeight: 21, fontWeight: "700", textAlign: "center" },
-  fantasyTint: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(2, 23, 25, 0.07)" },
   playerMarker: { width: 132, height: 132, alignItems: "center", justifyContent: "center" },
   markerGlow: {
     position: "absolute",

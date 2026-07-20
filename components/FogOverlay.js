@@ -80,7 +80,7 @@ function FogOverlay({ region, visitedCells = [], revealRadiusMeters = 105, curre
     <Polygon
       coordinates={outer}
       holes={holes}
-      fillColor="rgba(12, 20, 24, 0.82)"
+      fillColor="rgba(5, 15, 21, 0.74)"
       strokeColor="rgba(0,0,0,0)"
       strokeWidth={0}
       tappable={false}

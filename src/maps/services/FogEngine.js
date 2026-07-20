@@ -69,7 +69,7 @@ export class FogEngine {
     const latitudeDelta = Math.max(0.004, Math.min(0.18, Number(region.latitudeDelta || 0.028)));
     const longitudeDelta = Math.max(0.004, Math.min(0.18, Number(region.longitudeDelta || 0.028)));
     const revealRadius = Math.max(55, Number(options.revealRadiusMeters || 105));
-    const maxClouds = Math.max(12, Math.min(44, Number(options.maxClouds || 34)));
+    const maxClouds = Math.max(12, Math.min(38, Number(options.maxClouds || 32)));
     const centerLat = Number(region.latitude);
     const centerLng = Number(region.longitude);
 
@@ -143,21 +143,24 @@ export class FogEngine {
           (row + 0.5) * spacing + jitterY
         );
 
-        const cloudRadius = Math.max(115, spacing * (0.40 + this.hash(seed + 113) * 0.10));
+        const cloudRadius = Math.max(135, spacing * (0.45 + this.hash(seed + 113) * 0.12));
+        // The centre of a cloud stays outside the revealed route, while its soft edges
+        // may overlap the boundary. That produces a natural game-like opening instead
+        // of a sterile circular hole around the player.
         const nearVisited = visitedCenters.some((visited) => (
-          this.distanceMeters(center, visited) <= revealRadius + cloudRadius
+          this.distanceMeters(center, visited) <= revealRadius + cloudRadius * 0.16
         ));
         if (nearVisited) continue;
 
-        // Large overlapping textures create a continuous cloud blanket with a small,
-        // predictable number of native map markers.
-        const width = Math.round(225 + this.hash(seed + 211) * 125);
+        // Each marker renders a two-texture cloud bank. Bigger overlapping banks give
+        // full coverage with a conservative native-marker count.
+        const width = Math.round(285 + this.hash(seed + 211) * 155);
         clouds.push({
           id: `fog-${row}-${col}`,
           center,
           width,
-          height: Math.round(width * (0.60 + this.hash(seed + 251) * 0.10)),
-          opacity: 0.66 + this.hash(seed + 307) * 0.20,
+          height: Math.round(width * (0.58 + this.hash(seed + 251) * 0.12)),
+          opacity: 0.78 + this.hash(seed + 307) * 0.18,
           variant: 1 + Math.floor(this.hash(seed + 401) * 3),
           rotation: Math.round((this.hash(seed + 443) - 0.5) * 28),
           flip: this.hash(seed + 479) > 0.5,

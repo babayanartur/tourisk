@@ -120,15 +120,17 @@ function TouriskApp() {
     );
   }
 
+  // An authenticated explorer always lands in the application. The intro is only
+  // for a device that has never completed onboarding and has no active session.
+  if (user) {
+    return <AppTabs onLogout={handleLogout} />;
+  }
+
   if (!hasSeenIntro) {
     return <IntroScreen onDone={() => setHasSeenIntro(true)} />;
   }
 
-  if (!user) {
-    return <AuthScreen onAuth={setUser} />;
-  }
-
-  return <AppTabs onLogout={handleLogout} />;
+  return <AuthScreen onAuth={setUser} />;
 }
 
 export default function App() {

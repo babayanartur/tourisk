@@ -152,6 +152,7 @@ export function normalizeUser(user, options = {}) {
     achievements: raw.achievements || [],
     openedPlaces: raw.openedPlaces || [],
     distanceKm: Number((Number(raw.distanceMeters || 0) / 1000).toFixed(2)),
+    stepsCount: Math.max(0, Math.round(Number(raw.distanceMeters || 0) / 0.75)),
     streakDays: Number(raw.streakDays || 1),
     lastActiveDate: raw.lastActiveDate || null,
     lastLocation: raw.lastLocation || null,

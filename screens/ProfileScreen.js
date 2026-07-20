@@ -41,6 +41,7 @@ export default function ProfileScreen({ navigation, onLogout }) {
     level: 1,
     coins: 0,
     distanceKm: 0,
+    stepsCount: 0,
     legendaryPlaces: 0,
     hiddenPlaces: 0,
     streakDays: 1,
@@ -148,7 +149,7 @@ export default function ProfileScreen({ navigation, onLogout }) {
               <Text numberOfLines={1} style={styles.name}>{user?.nickname || "Explorer"}</Text>
               <View style={styles.explorerBadge}>
                 <Ionicons name="leaf" size={13} color="#b7ee59" />
-                <Text style={styles.titleLabel}>Explorer · уровень {stats.level || user?.level || 1}</Text>
+                <Text style={styles.titleLabel}>Исследователь мира</Text>
               </View>
               <Text numberOfLines={1} style={styles.locationText}>📍 {lastKnownPlace(checkins)}</Text>
               <View style={styles.rarityBadge}>
@@ -158,45 +159,61 @@ export default function ProfileScreen({ navigation, onLogout }) {
             </View>
           </View>
 
-          <View style={styles.heroNumbers}>
-            <TopNumber icon="earth-outline" value={stats.countries || 0} label="стран" />
-            <TopNumber icon="footsteps-outline" value={formatDistance(stats.distanceKm)} label="пути" />
-            <TopNumber icon="map-outline" value={stats.exploredKm2 || 0} label="км²" />
+          <View style={styles.identityStoryLine}>
+            <Ionicons name="book-outline" size={15} color="#f4c451" />
+            <Text style={styles.identityStoryText}>
+              История складывается из реальных мест, пройденных дорог и заслуженных наград.
+            </Text>
           </View>
         </View>
 
-        <View style={styles.statStrip}>
-          <ProfileStat icon="sparkles" value={stats.xp || 0} label="XP" />
-          <ProfileStat icon="grid" value={stats.territories || 0} label="Открытия" />
-          <ProfileStat icon="trophy" value={stats.achievements || 0} label="Награды" />
-          <ProfileStat icon="flame" value={stats.streakDays || 1} label="Серия дней" />
+        <View style={styles.storySection}>
+          <View style={styles.storyHeading}>
+            <Text style={styles.storyEyebrow}>ИСТОРИЯ ИССЛЕДОВАТЕЛЯ</Text>
+            <Text style={styles.storyHint}>Главное, что уже осталось на карте мира</Text>
+          </View>
+
+          <View style={styles.primaryStoryRow}>
+            <StoryPrimaryMetric
+              icon="trophy"
+              value={stats.achievements || 0}
+              label="Награды"
+              detail="заслужено в пути"
+              accent="#f4c451"
+            />
+            <StoryPrimaryMetric
+              icon="compass"
+              value={stats.territories || 0}
+              label="Открытия"
+              detail="территорий раскрыто"
+              accent="#b7ee59"
+            />
+          </View>
+
+          <View style={styles.secondaryStoryRow}>
+            <StorySecondaryMetric
+              icon="flame"
+              value={`${formatNumber(stats.streakDays || 1)} дн.`}
+              label="Серия"
+              accent="#ff9a5b"
+            />
+            <StorySecondaryMetric
+              icon="footsteps"
+              value={formatNumber(stats.stepsCount || 0)}
+              label="Шаги"
+              accent="#d9f5a0"
+            />
+            <StorySecondaryMetric
+              icon="star"
+              value={formatNumber(stats.xp || 0)}
+              label="XP"
+              accent="#89c7ff"
+              subdued
+            />
+          </View>
         </View>
 
-        <View style={styles.geographySection}>
-          <TravelGeographyCard stats={stats} checkins={checkins} user={user} />
-        </View>
-
-        <Panel title="Последние открытия" action={`${discoveries.length} в коллекции`}>
-          {discoveries.length ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.discoveryRow}>
-              {discoveries.map((item, index) => (
-                <DiscoveryCard key={item.id || `${item.title}-${index}`} item={item} featured={index === 0} index={index} />
-              ))}
-            </ScrollView>
-          ) : (
-            <View style={styles.emptyDiscovery}>
-              <View style={styles.emptyDiscoveryIcon}>
-                <Ionicons name="compass-outline" size={24} color="#b8f55b" />
-              </View>
-              <View style={styles.emptyDiscoveryCopy}>
-                <Text style={styles.emptyDiscoveryTitle}>Открытий пока нет</Text>
-                <Text style={styles.emptyDiscoveryText}>Открой карту и пройди первые реальные метры.</Text>
-              </View>
-            </View>
-          )}
-        </Panel>
-
-        <Panel title="Достижения" action={`${stats.achievements || 0}/${content.achievements.length}`}>
+        <Panel title="Награды и достижения" action={`${stats.achievements || 0}/${content.achievements.length}`}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.achievementsRow}>
             {content.achievements.map((item) => {
               const unlocked = isRequirementMet(item, stats);
@@ -224,6 +241,30 @@ export default function ProfileScreen({ navigation, onLogout }) {
             })}
           </ScrollView>
         </Panel>
+
+        <Panel title="Последние открытия" action={`${discoveries.length} в коллекции`}>
+          {discoveries.length ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.discoveryRow}>
+              {discoveries.map((item, index) => (
+                <DiscoveryCard key={item.id || `${item.title}-${index}`} item={item} featured={index === 0} index={index} />
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyDiscovery}>
+              <View style={styles.emptyDiscoveryIcon}>
+                <Ionicons name="compass-outline" size={24} color="#b8f55b" />
+              </View>
+              <View style={styles.emptyDiscoveryCopy}>
+                <Text style={styles.emptyDiscoveryTitle}>Открытий пока нет</Text>
+                <Text style={styles.emptyDiscoveryText}>Открой карту и пройди первые реальные метры.</Text>
+              </View>
+            </View>
+          )}
+        </Panel>
+
+        <View style={styles.geographySection}>
+          <TravelGeographyCard stats={stats} checkins={checkins} user={user} />
+        </View>
 
         <Panel title="Коллекция фигурок" action={`${content.pawns.length} образов`}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pawnRow}>
@@ -330,24 +371,29 @@ function Panel({ title, action, children }) {
   );
 }
 
-function TopNumber({ icon, value, label }) {
+function StoryPrimaryMetric({ icon, value, label, detail, accent }) {
   return (
-    <View style={styles.topNumber}>
-      <Ionicons name={icon} size={16} color="rgba(255,255,255,0.54)" />
-      <Text numberOfLines={1} style={styles.topNumberValue}>{value}</Text>
-      <Text style={styles.topNumberLabel}>{label}</Text>
+    <View style={[styles.storyPrimaryCard, { borderColor: `${accent}38` }]}>
+      <View style={[styles.storyPrimaryIcon, { backgroundColor: `${accent}16` }]}>
+        <Ionicons name={icon} size={22} color={accent} />
+      </View>
+      <View style={styles.storyPrimaryCopy}>
+        <Text style={[styles.storyPrimaryValue, { color: accent }]}>{formatNumber(value)}</Text>
+        <Text style={styles.storyPrimaryLabel}>{label}</Text>
+        <Text numberOfLines={1} style={styles.storyPrimaryDetail}>{detail}</Text>
+      </View>
     </View>
   );
 }
 
-function ProfileStat({ icon, value, label }) {
+function StorySecondaryMetric({ icon, value, label, accent, subdued = false }) {
   return (
-    <View style={styles.profileStat}>
-      <View style={styles.profileStatIconWrap}>
-        <Ionicons name={icon} size={18} color="#b7ee59" />
+    <View style={[styles.storySecondaryCard, subdued && styles.storySecondarySubdued]}>
+      <View style={[styles.storySecondaryIcon, { backgroundColor: `${accent}14` }]}>
+        <Ionicons name={icon} size={17} color={accent} />
       </View>
-      <Text style={styles.profileStatValue}>{formatNumber(value)}</Text>
-      <Text numberOfLines={1} style={styles.profileStatLabel}>{label}</Text>
+      <Text numberOfLines={1} style={styles.storySecondaryValue}>{value}</Text>
+      <Text style={styles.storySecondaryLabel}>{label}</Text>
     </View>
   );
 }
@@ -452,7 +498,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   heroCard: {
-    minHeight: 240,
+    minHeight: 226,
     padding: 16,
     borderRadius: 30,
     overflow: "hidden",
@@ -534,62 +580,128 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "800",
   },
-  heroNumbers: {
+  identityStoryLine: {
     marginTop: 16,
-    paddingTop: 14,
+    paddingTop: 13,
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.08)",
     flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
   },
-  topNumber: {
+  identityStoryText: {
     flex: 1,
+    color: "rgba(255,255,255,0.54)",
+    fontSize: 10,
+    lineHeight: 15,
+    fontWeight: "700",
+  },
+  storySection: {
+    marginTop: 13,
+    padding: 13,
+    borderRadius: 27,
+    backgroundColor: "rgba(3, 23, 22, 0.93)",
+    borderWidth: 1,
+    borderColor: "rgba(244,196,81,0.13)",
+  },
+  storyHeading: {
+    paddingHorizontal: 3,
+    marginBottom: 11,
+  },
+  storyEyebrow: {
+    color: "#f4c451",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+  },
+  storyHint: {
+    marginTop: 4,
+    color: "rgba(255,255,255,0.43)",
+    fontSize: 9,
+    lineHeight: 13,
+    fontWeight: "700",
+  },
+  primaryStoryRow: {
+    flexDirection: "row",
+    gap: 9,
+  },
+  storyPrimaryCard: {
+    flex: 1,
+    minHeight: 116,
+    padding: 12,
+    borderRadius: 21,
+    backgroundColor: "rgba(255,255,255,0.035)",
+    borderWidth: 1,
+    flexDirection: "row",
     alignItems: "center",
   },
-  topNumberValue: {
-    marginTop: 3,
-    maxWidth: 105,
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "900",
-  },
-  topNumberLabel: {
-    marginTop: 2,
-    color: "rgba(255,255,255,0.42)",
-    fontSize: 9,
-    fontWeight: "800",
-  },
-  statStrip: {
-    minHeight: 91,
-    marginTop: 10,
-    borderRadius: 25,
-    paddingHorizontal: 5,
-    flexDirection: "row",
-    backgroundColor: "rgba(3, 24, 23, 0.92)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-  },
-  profileStat: {
-    flex: 1,
+  storyPrimaryIcon: {
+    width: 43,
+    height: 43,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
   },
-  profileStatIconWrap: {
-    width: 30,
-    height: 30,
+  storyPrimaryCopy: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  storyPrimaryValue: {
+    fontSize: 25,
+    lineHeight: 28,
+    fontWeight: "900",
+    letterSpacing: -0.6,
+  },
+  storyPrimaryLabel: {
+    marginTop: 2,
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  storyPrimaryDetail: {
+    marginTop: 3,
+    color: "rgba(255,255,255,0.38)",
+    fontSize: 8,
+    fontWeight: "700",
+  },
+  secondaryStoryRow: {
+    marginTop: 9,
+    flexDirection: "row",
+    gap: 8,
+  },
+  storySecondaryCard: {
+    flex: 1,
+    minHeight: 92,
+    paddingHorizontal: 6,
+    paddingVertical: 10,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.036)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.065)",
+  },
+  storySecondarySubdued: {
+    backgroundColor: "rgba(137,199,255,0.025)",
+    borderColor: "rgba(137,199,255,0.08)",
+  },
+  storySecondaryIcon: {
+    width: 31,
+    height: 31,
     borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(169,236,86,0.08)",
   },
-  profileStatValue: {
-    marginTop: 4,
+  storySecondaryValue: {
+    marginTop: 5,
+    maxWidth: 105,
     color: "#fff",
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "900",
   },
-  profileStatLabel: {
+  storySecondaryLabel: {
     marginTop: 2,
-    color: "rgba(255,255,255,0.41)",
+    color: "rgba(255,255,255,0.42)",
     fontSize: 8,
     fontWeight: "800",
   },

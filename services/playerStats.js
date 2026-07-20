@@ -39,7 +39,11 @@ export async function getPlayerStats() {
   );
   const territories = Math.max(visitedCells.length, Number(user.territories || 0));
   const exploredKm2 = Math.max(Number((territories * 0.01).toFixed(2)), Number(user.exploredKm2 || 0));
-  const distanceKm = Math.max(Number((Number(distanceRaw || 0) / 1000).toFixed(2)), Number(user.distanceKm || 0));
+  const distanceMeters = Math.max(Number(distanceRaw || 0), Number(user.distanceKm || 0) * 1000);
+  const distanceKm = Number((distanceMeters / 1000).toFixed(2));
+  // GPS distance is the source of truth in the current MVP. A 0.75 m average stride
+  // gives a stable real-world step count without inventing a second tracking system.
+  const stepsCount = Math.max(Number(user.stepsCount || 0), Math.round(distanceMeters / 0.75));
   const hiddenPlaces = openedPlaces.filter((id) => placeCatalog.some((place) => place.id === id && place.rarity === "hidden")).length;
   const legendaryPlaces = openedPlaces.filter((id) => placeCatalog.some((place) => place.id === id && place.rarity === "legendary")).length;
   const yerevanPlaces = openedPlaces.filter((id) => placeCatalog.some((place) => place.id === id && place.city === "Ереван")).length;
@@ -62,6 +66,7 @@ export async function getPlayerStats() {
     territories,
     exploredKm2,
     distanceKm,
+    stepsCount,
     hiddenPlaces,
     legendaryPlaces,
     yerevanPlaces,

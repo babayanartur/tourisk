@@ -25,6 +25,7 @@ function normalizeUser(user) {
     countries: Array.isArray(safeUser.countries) ? safeUser.countries : undefined,
     stars: Number(safeUser.stars || 0),
     distanceKm: Number(safeUser.distanceKm || 0),
+    stepsCount: Number(safeUser.stepsCount || Math.round(Number(safeUser.distanceKm || 0) * 1000 / 0.75)),
     streakDays: Number(safeUser.streakDays || 1),
     lastActiveDate: safeUser.lastActiveDate || null,
     selectedPawn: safeUser.selectedPawn || "pawn_green",
