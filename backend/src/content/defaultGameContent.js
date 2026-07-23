@@ -186,6 +186,5 @@ export const DEFAULT_PUBLIC_CONFIG = {
   trailLifetimeSeconds: 50,
   dailyJourneyHour: 18,
   fogOpacity: 0.82,
-  testCode: "1111",
   appStage: "mvp-stage3",
 };

@@ -1,7 +1,0 @@
-legendary_places: 10
-all_rewards_xp: 50
-assets_verified: 10
-asset_copies_match: True
-atomic_reward_route: True
-ios_metro_export: passed
-backend_syntax_check: passed

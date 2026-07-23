@@ -1,4 +1,4 @@
-const apiUrl = String(process.env.EXPO_PUBLIC_API_URL || "").trim().replace(/\/$/, "");
+const apiUrl = String(process.env.EXPO_PUBLIC_API_URL || "https://back.tourisk.app/api").trim().replace(/\/$/, "");
 
 export default {
   expo: {
@@ -45,6 +45,7 @@ export default {
       favicon: "./assets/favicon.png",
     },
     plugins: [
+      ["expo-dev-client", { launchMode: "most-recent" }],
       "expo-font",
       [
         "expo-location",

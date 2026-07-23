@@ -14,6 +14,7 @@ import { gameRouter } from "./routes/game.js";
 import { leaderboardRouter } from "./routes/leaderboard.js";
 import { meRouter } from "./routes/me.js";
 import { bootstrapGameContent } from "./services/bootstrapGameContent.js";
+import { isEmailDeliveryConfigured } from "./services/emailService.js";
 import { uploadsRoot } from "./utils/publicAsset.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -50,6 +51,7 @@ app.get("/api/health", async (req, res) => {
     service: "tourisk-backend",
     database: dbState,
     uploads: fs.existsSync(uploadsRoot),
+    emailDelivery: isEmailDeliveryConfigured() ? "configured" : "not_configured",
     time: new Date().toISOString(),
   });
 });

@@ -1,8 +1,0 @@
-Tourisk Mobile 1.8.6 validation
-
-- Parsed 70 JavaScript/JSX files with @babel/parser: PASS
-- Expo public config generation: PASS
-- Version: 1.8.6
-- iOS buildNumber: 14
-- Android versionCode: 14
-- Expo export: Metro started, but did not finish inside the container time limit.

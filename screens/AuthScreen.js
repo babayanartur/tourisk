@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { loginWithProvider, requestEmailCode, verifyEmailCode } from "../services/authService";
+import { requestEmailCode, verifyEmailCode } from "../services/authService";
 import LegalDocumentScreen from "./LegalDocumentScreen";
 import LivingWorld from "../components/LivingWorld";
 
@@ -28,6 +28,7 @@ export default function AuthScreen({ onAuth }) {
   const [policyAccepted, setPolicyAccepted] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [legalType, setLegalType] = useState(null);
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const cardY = useRef(new Animated.Value(28)).current;
@@ -41,6 +42,15 @@ export default function AuthScreen({ onAuth }) {
     ]).start();
 
   }, [cardOpacity, cardY]);
+
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return undefined;
+    const timer = setInterval(() => {
+      setResendSeconds((value) => Math.max(0, value - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendSeconds]);
 
   const requirePolicy = () => {
     if (policyAccepted) return true;
@@ -57,9 +67,11 @@ export default function AuthScreen({ onAuth }) {
 
     setLoading(true);
     try {
-      await requestEmailCode(cleanEmail);
+      const result = await requestEmailCode(cleanEmail);
       setCodeSent(true);
-      Alert.alert("Код отправлен", "Для тестовой сборки используйте код 1111.");
+      setCode("");
+      setResendSeconds(60);
+      Alert.alert("Код отправлен", result?.message || "Проверьте почту. Код действует 10 минут.");
     } catch (error) {
       Alert.alert("Ошибка", error.message || "Не удалось отправить код.");
     } finally {
@@ -69,8 +81,8 @@ export default function AuthScreen({ onAuth }) {
 
   const confirmCode = async () => {
     if (!requirePolicy()) return;
-    if (code.trim().length !== 4) {
-      Alert.alert("Код", "Введите четыре цифры из письма.");
+    if (!/^\d{6}$/.test(code.trim())) {
+      Alert.alert("Код", "Введите шесть цифр из письма.");
       return;
     }
 
@@ -85,18 +97,6 @@ export default function AuthScreen({ onAuth }) {
     }
   };
 
-  const providerLogin = async (provider) => {
-    if (!requirePolicy()) return;
-    setLoading(true);
-    try {
-      const user = await loginWithProvider(provider);
-      onAuth(user);
-    } catch (error) {
-      Alert.alert("Вход", error.message || "Не удалось войти.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <View style={styles.root}>
@@ -152,7 +152,7 @@ export default function AuthScreen({ onAuth }) {
                   value={code}
                   onChangeText={setCode}
                   keyboardType="number-pad"
-                  maxLength={4}
+                  maxLength={6}
                   placeholder="Код из письма"
                   placeholderTextColor="rgba(255,255,255,0.34)"
                   style={styles.input}
@@ -177,28 +177,27 @@ export default function AuthScreen({ onAuth }) {
             </TouchableOpacity>
 
             {codeSent && (
-              <TouchableOpacity activeOpacity={0.8} style={styles.changeEmailButton} onPress={() => { setCodeSent(false); setCode(""); }}>
-                <Text style={styles.changeEmailText}>Изменить почту</Text>
-              </TouchableOpacity>
+              <View style={styles.codeActions}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={styles.changeEmailButton}
+                  onPress={() => { setCodeSent(false); setCode(""); setResendSeconds(0); }}
+                >
+                  <Text style={styles.changeEmailText}>Изменить почту</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={styles.changeEmailButton}
+                  disabled={loading || resendSeconds > 0}
+                  onPress={sendCode}
+                >
+                  <Text style={[styles.changeEmailText, resendSeconds > 0 && styles.resendDisabled]}>
+                    {resendSeconds > 0 ? `Повторно через ${resendSeconds} с` : "Отправить ещё раз"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             )}
 
-            <View style={styles.separator}>
-              <View style={styles.line} />
-              <Text style={styles.separatorText}>или продолжить через</Text>
-              <View style={styles.line} />
-            </View>
-
-            <View style={styles.providerRow}>
-              <TouchableOpacity activeOpacity={0.85} style={styles.providerButton} onPress={() => providerLogin("apple")}>
-                <Ionicons name="logo-apple" size={22} color="#fff" />
-                <Text style={styles.providerText}>Apple</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity activeOpacity={0.85} style={styles.providerButton} onPress={() => providerLogin("google")}>
-                <Text style={styles.googleMark}>G</Text>
-                <Text style={styles.providerText}>Google</Text>
-              </TouchableOpacity>
-            </View>
 
             <TouchableOpacity activeOpacity={0.85} style={styles.policyRow} onPress={() => setPolicyAccepted((value) => !value)}>
               <View style={[styles.checkbox, policyAccepted && styles.checkboxActive]}>
@@ -218,7 +217,6 @@ export default function AuthScreen({ onAuth }) {
             </View>
           </Animated.View>
 
-          <Text style={styles.testHint}>Тестовый код: 1111</Text>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -267,6 +265,8 @@ const styles = StyleSheet.create({
   primaryButton: { marginTop: 13, height: 58, borderRadius: 19, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#a9ec56", shadowColor: "#a9ec56", shadowOpacity: 0.26, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
   primaryText: { color: "#07140d", fontSize: 17, fontWeight: "900" },
   disabled: { opacity: 0.62 },
+  codeActions: { marginTop: 12, gap: 10, alignItems: "center" },
+  resendDisabled: { opacity: 0.45 },
   changeEmailButton: { alignSelf: "center", paddingVertical: 9, paddingHorizontal: 12 },
   changeEmailText: { color: "rgba(255,255,255,0.56)", fontSize: 12, fontWeight: "800" },
   separator: { marginVertical: 17, flexDirection: "row", alignItems: "center" },
@@ -283,5 +283,4 @@ const styles = StyleSheet.create({
   legalLinks: { marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", flexWrap: "wrap", gap: 7 },
   legalLink: { color: "#b9ed75", fontSize: 11, fontWeight: "800", textDecorationLine: "underline" },
   legalDot: { color: "rgba(255,255,255,0.28)", fontSize: 11 },
-  testHint: { alignSelf: "center", marginTop: 18, color: "rgba(255,255,255,0.46)", fontSize: 11, fontWeight: "800", letterSpacing: 0.7 },
 });

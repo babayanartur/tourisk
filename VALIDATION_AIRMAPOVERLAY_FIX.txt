@@ -1,9 +1,0 @@
-AIRMapOverlay bounds fix
-
-- components/NativeMapFogLayer.js: Overlay bounds normalized with Math.min/Math.max.
-- Bounds order: [[southLatitude, westLongitude], [northLatitude, eastLongitude]].
-- Non-finite coordinate values are rejected before rendering.
-- Active <Overlay> usages checked: 1.
-- Reported latitude pair normalizes to:
-  southLatitude = 25.254511145913316
-  northLatitude = 25.25905313004174

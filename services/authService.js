@@ -140,76 +140,20 @@ export async function syncCurrentUser() {
 }
 
 export async function requestEmailCode(email) {
-  try {
-    return await apiRequest("/api/auth/email/request", {
-      method: "POST",
-      body: JSON.stringify({ email }),
-    });
-  } catch (error) {
-    if (error?.code !== "NETWORK_ERROR") throw error;
-    return {
-      ok: true,
-      offline: true,
-      message: "Бэкенд недоступен. Для теста используй код 1111.",
-      devCode: "1111",
-    };
-  }
+  return apiRequest("/api/auth/email/request", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
 }
 
 export async function verifyEmailCode(email, code) {
-  if (String(code).trim() !== "1111") {
-    throw new Error("Для тестовой сборки код входа: 1111");
-  }
+  const result = await apiRequest("/api/auth/email/verify", {
+    method: "POST",
+    body: JSON.stringify({ email, code: String(code || "").trim() }),
+  });
 
-  try {
-    const result = await apiRequest("/api/auth/email/verify", {
-      method: "POST",
-      body: JSON.stringify({ email, code: "1111" }),
-    });
-
-    await setAuthToken(result.token);
-    return saveUser(result.user);
-  } catch (error) {
-    if (error?.code !== "NETWORK_ERROR") throw error;
-    const fallbackUser = normalizeUser({
-      id: "local-demo-user",
-      email,
-      nickname: email.split("@")[0] || "Explorer",
-      selectedPawn: "pawn_green",
-    });
-
-    await setAuthToken("local-demo-token");
-    return saveUser(fallbackUser);
-  }
-}
-
-export async function loginWithProvider(provider) {
-  const providerName = provider === "apple" ? "Apple" : "Google";
-
-  try {
-    const result = await apiRequest("/api/auth/provider", {
-      method: "POST",
-      body: JSON.stringify({
-        provider,
-        email: `${provider}@tourisk.local`,
-        name: `${providerName} Explorer`,
-      }),
-    });
-
-    await setAuthToken(result.token);
-    return saveUser(result.user);
-  } catch (error) {
-    if (error?.code !== "NETWORK_ERROR") throw error;
-    const fallbackUser = normalizeUser({
-      id: `local-${provider}`,
-      email: `${provider}@tourisk.local`,
-      nickname: `${providerName} Explorer`,
-      selectedPawn: "pawn_green",
-    });
-
-    await setAuthToken(`local-${provider}-token`);
-    return saveUser(fallbackUser);
-  }
+  await setAuthToken(result.token);
+  return saveUser(result.user);
 }
 
 export async function updateProfile(data) {

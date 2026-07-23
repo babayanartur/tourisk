@@ -46,6 +46,10 @@ if [[ -f "$EXISTING_ENV" ]]; then
   ADMIN_JWT_SECRET="$(sed -n 's/^ADMIN_JWT_SECRET=//p' "$EXISTING_ENV" | head -n1)"
   ADMIN_PASSWORD="$(sed -n 's/^ADMIN_PASSWORD=//p' "$EXISTING_ENV" | head -n1)"
   ADMIN_KEY="$(sed -n 's/^ADMIN_KEY=//p' "$EXISTING_ENV" | head -n1)"
+  AUTH_CODE_SECRET="$(sed -n 's/^AUTH_CODE_SECRET=//p' "$EXISTING_ENV" | head -n1)"
+  RESEND_API_KEY="$(sed -n 's/^RESEND_API_KEY=//p' "$EXISTING_ENV" | head -n1)"
+  EMAIL_FROM="$(sed -n 's/^EMAIL_FROM=//p' "$EXISTING_ENV" | head -n1)"
+  EMAIL_REPLY_TO="$(sed -n 's/^EMAIL_REPLY_TO=//p' "$EXISTING_ENV" | head -n1)"
 else
   DB_USER="tourisk_app"
   DB_PASSWORD="$(openssl rand -hex 24)"
@@ -53,7 +57,16 @@ else
   ADMIN_JWT_SECRET="$(openssl rand -hex 48)"
   ADMIN_PASSWORD="$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | head -c 24)"
   ADMIN_KEY="$(openssl rand -hex 32)"
+  AUTH_CODE_SECRET="$(openssl rand -hex 48)"
+  RESEND_API_KEY=""
+  EMAIL_FROM="Tourisk <login@tourisk.app>"
+  EMAIL_REPLY_TO="support@tourisk.app"
 fi
+
+AUTH_CODE_SECRET="${AUTH_CODE_SECRET:-$(openssl rand -hex 48)}"
+RESEND_API_KEY="${RESEND_API_KEY:-}"
+EMAIL_FROM="${EMAIL_FROM:-Tourisk <login@tourisk.app>}"
+EMAIL_REPLY_TO="${EMAIL_REPLY_TO:-support@tourisk.app}"
 
 if [[ "$FIRST_INSTALL" -eq 1 ]]; then
   if grep -q 'authorization: enabled' /etc/mongod.conf; then
@@ -74,7 +87,8 @@ fi
 systemctl restart mongod
 
 mkdir -p "$APP_ROOT/backend" "$APP_ROOT/landing"
-rsync -a --delete --exclude='.env' --exclude='node_modules' "$ROOT_DIR/backend/" "$APP_ROOT/backend/"
+rsync -a --delete --exclude='.env' --exclude='node_modules' --exclude='uploads' "$ROOT_DIR/backend/" "$APP_ROOT/backend/"
+mkdir -p "$APP_ROOT/backend/uploads"
 rsync -a --delete "$ROOT_DIR/landing/" "$APP_ROOT/landing/"
 chown -R "$APP_USER:$APP_USER" "$APP_ROOT"
 
@@ -84,6 +98,7 @@ HOST=127.0.0.1
 PORT=8000
 MONGO_URI=mongodb://${DB_USER}:${DB_PASSWORD}@127.0.0.1:27017/tourisk?authSource=tourisk
 JWT_SECRET=${JWT_SECRET}
+AUTH_CODE_SECRET=${AUTH_CODE_SECRET}
 ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET}
 ADMIN_LOGIN=admin
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
@@ -91,6 +106,10 @@ ADMIN_KEY=${ADMIN_KEY}
 APP_URL=https://www.tourisk.app
 PUBLIC_URL=https://back.tourisk.app
 CORS_ORIGINS=https://tourisk.app,https://www.tourisk.app,https://admin.tourisk.app
+RESEND_API_KEY=${RESEND_API_KEY}
+EMAIL_FROM=${EMAIL_FROM}
+EMAIL_REPLY_TO=${EMAIL_REPLY_TO}
+EMAIL_DEV_MODE=false
 ENVFILE
 chown "$APP_USER:$APP_USER" "$APP_ROOT/backend/.env"
 chmod 600 "$APP_ROOT/backend/.env"
@@ -129,7 +148,7 @@ MongoDB user: ${DB_USER}
 MongoDB password: ${DB_PASSWORD}
 
 Backend health: https://back.tourisk.app/api/health
-Mobile API URL: https://back.tourisk.app
+Mobile API URL: https://back.tourisk.app/api
 CREDS
 chmod 600 "$CREDENTIALS_FILE"
 

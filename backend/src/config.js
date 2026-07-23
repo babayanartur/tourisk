@@ -17,4 +17,9 @@ export const config = {
   appUrl: normalizeUrl(process.env.APP_URL || "http://localhost:8081"),
   publicUrl: normalizeUrl(process.env.PUBLIC_URL || ""),
   nodeEnv: process.env.NODE_ENV || "development",
+  authCodeSecret: process.env.AUTH_CODE_SECRET || process.env.JWT_SECRET || "tourisk-auth-code-secret-change-on-server",
+  resendApiKey: String(process.env.RESEND_API_KEY || "").trim(),
+  emailFrom: String(process.env.EMAIL_FROM || "Tourisk <login@tourisk.app>").trim(),
+  emailReplyTo: String(process.env.EMAIL_REPLY_TO || "").trim(),
+  emailDevMode: String(process.env.EMAIL_DEV_MODE || "false").toLowerCase() === "true",
 };

@@ -1,9 +1,0 @@
-Tourisk Mobile 1.3.0 validation
-- All JavaScript files parsed by Babel parser
-- package.json and package-lock.json parsed
-- All map labels disabled in Google map style
-- iOS/Expo map uses satellite base without street labels
-- No local pawn image assets in mobile
-- No demo leaderboard users in screen/service code
-- react-native-svg dependency declared
-- Public npm registry only

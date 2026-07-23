@@ -1,28 +1,26 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
-import { Platform } from "react-native";
 import { STORAGE_KEYS } from "./storageKeys";
 
-const DEFAULT_ANDROID_EMULATOR_URL = "http://10.0.2.2:8000";
-const DEFAULT_IOS_SIMULATOR_URL = "http://127.0.0.1:8000";
+const DEFAULT_PRODUCTION_API_URL = "https://back.tourisk.app/api";
 const REQUEST_TIMEOUT_MS = 15000;
 
 function normalizeBaseUrl(value) {
   return String(value || "").trim().replace(/\/$/, "");
 }
 
-function getMetroHostUrl() {
-  const hostUri = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoGo?.debuggerHost || "";
-  const host = String(hostUri).split(":")[0];
-  if (!host || host === "localhost" || host === "127.0.0.1") return "";
-  return `http://${host}:8000`;
-}
-
 export const API_BASE_URL =
   normalizeBaseUrl(process.env.EXPO_PUBLIC_API_URL) ||
   normalizeBaseUrl(Constants.expoConfig?.extra?.apiUrl) ||
-  getMetroHostUrl() ||
-  (Platform.OS === "android" ? DEFAULT_ANDROID_EMULATOR_URL : DEFAULT_IOS_SIMULATOR_URL);
+  DEFAULT_PRODUCTION_API_URL;
+
+function buildApiUrl(path) {
+  const normalizedPath = `/${String(path || "").replace(/^\/+/, "")}`;
+  if (API_BASE_URL.endsWith("/api") && normalizedPath.startsWith("/api/")) {
+    return `${API_BASE_URL}${normalizedPath.slice(4)}`;
+  }
+  return `${API_BASE_URL}${normalizedPath}`;
+}
 
 export async function getAuthToken() {
   return AsyncStorage.getItem(STORAGE_KEYS.authToken);
@@ -51,7 +49,7 @@ export async function apiRequest(path, options = {}) {
 
   let response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(buildApiUrl(path), {
       ...options,
       headers,
       signal: controller.signal,

@@ -7,7 +7,7 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "seed": "node src/seed.js",
-    "check": "node --check src/server.js && node --check src/routes/admin.js && node --check src/routes/game.js && node --check src/routes/me.js && node --check src/utils/userMutation.js && node --check src/content/defaultGameContent.js && node --check src/models/GameContent.js && node --check src/services/bootstrapGameContent.js",
+    "check": "node --check src/server.js && node --check src/routes/auth.js && node --check src/routes/admin.js && node --check src/routes/game.js && node --check src/routes/me.js && node --check src/services/emailService.js && node --check src/utils/userMutation.js && node --check src/content/defaultGameContent.js && node --check src/models/AuthCode.js && node --check src/models/GameContent.js && node --check src/services/bootstrapGameContent.js",
     "setup": "node scripts/setup.js"
   },
   "dependencies": {

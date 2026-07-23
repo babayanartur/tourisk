@@ -1,9 +1,0 @@
-Tourisk Mobile 1.5.0 validation
-
-[OK] expo config --type public
-[OK] expo export --platform ios
-[OK] expo export --platform android
-[OK] единый фон подключён на всех экранах с LivingWorld
-[OK] WorldTravelMap подключён вместо KyrgyzstanTravelMap
-[OK] облака ограничены по количеству для iOS/Android
-[OK] GPS-обработка сериализована

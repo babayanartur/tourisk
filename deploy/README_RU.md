@@ -97,13 +97,13 @@ curl https://back.tourisk.app/api/health
 Production API URL:
 
 ```bash
-EXPO_PUBLIC_API_URL=https://back.tourisk.app
+EXPO_PUBLIC_API_URL=https://back.tourisk.app/api
 ```
 
 Для EAS:
 
 ```bash
-eas env:create --name EXPO_PUBLIC_API_URL --value https://back.tourisk.app --environment production --visibility plaintext
+eas env:create --name EXPO_PUBLIC_API_URL --value https://back.tourisk.app/api --environment production --visibility plaintext
 ```
 
 ## Обновление backend и лендинга

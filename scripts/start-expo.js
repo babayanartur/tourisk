@@ -45,7 +45,7 @@ removeDirectory(".expo");
 removeDirectory("node_modules/.cache/metro");
 
 const lanAddress = findLanAddress();
-const apiUrl = process.env.EXPO_PUBLIC_API_URL || `http://${lanAddress}:8000`;
+const apiUrl = process.env.EXPO_PUBLIC_API_URL || "https://back.tourisk.app/api";
 const extraArgs = process.argv.slice(2);
 const expoCli = resolveLocalExpoCli();
 const args = [expoCli, "start", "--clear", "--lan", ...extraArgs];

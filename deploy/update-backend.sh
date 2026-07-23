@@ -9,7 +9,7 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-rsync -a --delete --exclude='.env' --exclude='node_modules' "$ROOT_DIR/backend/" "$APP_ROOT/backend/"
+rsync -a --delete --exclude='.env' --exclude='node_modules' --exclude='uploads' "$ROOT_DIR/backend/" "$APP_ROOT/backend/"
 rsync -a --delete "$ROOT_DIR/landing/" "$APP_ROOT/landing/"
 chown -R "$APP_USER:$APP_USER" "$APP_ROOT"
 sudo -u "$APP_USER" bash -lc "cd '$APP_ROOT/backend' && npm ci --omit=dev && npm run check && pm2 restart tourisk-back --update-env && pm2 save"
