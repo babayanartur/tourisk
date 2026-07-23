@@ -152,13 +152,26 @@ function outerPolygon(region, multiplier = 3.2) {
   ];
 }
 
+function normalizeOverlayBounds(pointA, pointB) {
+  const lat1 = Number(pointA?.latitude);
+  const lng1 = Number(pointA?.longitude);
+  const lat2 = Number(pointB?.latitude);
+  const lng2 = Number(pointB?.longitude);
+
+  if (![lat1, lng1, lat2, lng2].every(Number.isFinite)) return null;
+
+  // react-native-maps expects [[southLatitude, westLongitude], [northLatitude, eastLongitude]].
+  // Always normalize both axes so AIRMapOverlay cannot receive inverted bounds.
+  return [
+    [Math.min(lat1, lat2), Math.min(lng1, lng2)],
+    [Math.max(lat1, lat2), Math.max(lng1, lng2)],
+  ];
+}
+
 function cloudBounds(center, widthMeters, heightMeters) {
   const northEast = FogEngine.offsetPoint(center, widthMeters / 2, heightMeters / 2);
   const southWest = FogEngine.offsetPoint(center, -widthMeters / 2, -heightMeters / 2);
-  return [
-    [northEast.latitude, northEast.longitude],
-    [southWest.latitude, southWest.longitude],
-  ];
+  return normalizeOverlayBounds(northEast, southWest);
 }
 
 function buildClouds(region, revealPoints, revealRadiusMeters) {
@@ -202,10 +215,13 @@ function buildClouds(region, revealPoints, revealRadiusMeters) {
 
       const widthMeters = spacing * (1.75 + hash(seed + 23) * 0.70);
       const heightMeters = widthMeters * (0.45 + hash(seed + 29) * 0.12);
+      const bounds = cloudBounds(center, widthMeters, heightMeters);
+      if (!bounds) continue;
+
       clouds.push({
         id: `native-cloud-${row}-${col}`,
         image: CLOUD_TEXTURES[Math.abs(row + col) % CLOUD_TEXTURES.length],
-        bounds: cloudBounds(center, widthMeters, heightMeters),
+        bounds,
         opacity: 0.42 + hash(seed + 31) * 0.16,
         distance: FogEngine.distanceMeters(center, region),
       });
