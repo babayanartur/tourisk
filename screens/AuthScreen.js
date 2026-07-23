@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   cardHeaderIcon: { position: "absolute", top: -24, alignSelf: "center", width: 50, height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center", backgroundColor: "#08251b", borderWidth: 1, borderColor: "rgba(169,236,86,0.35)", shadowColor: "#a9ec56", shadowOpacity: 0.28, shadowRadius: 16 },
   title: { marginTop: 8, color: "#fff", fontSize: 29, lineHeight: 34, fontWeight: "900", textAlign: "center", letterSpacing: -0.7 },
   text: { marginTop: 8, marginBottom: 18, color: "rgba(255,255,255,0.62)", fontSize: 14, lineHeight: 20, fontWeight: "700", textAlign: "center" },
-  inputWrap: { height: 56, marginTop: 10, paddingHorizontal: 15, borderRadius: 18, flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.11)" },
+  inputWrap: { height: 56, marginTop: 10, paddingHorizontal: 15, borderRadius: 18, flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.11)",  },
   input: { flex: 1, height: "100%", marginLeft: 10, color: "#fff", fontSize: 16, fontWeight: "800" },
   primaryButton: { marginTop: 13, height: 58, borderRadius: 19, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#a9ec56", shadowColor: "#a9ec56", shadowOpacity: 0.26, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
   primaryText: { color: "#07140d", fontSize: 17, fontWeight: "900" },
